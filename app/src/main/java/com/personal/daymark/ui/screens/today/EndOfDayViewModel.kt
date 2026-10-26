@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 enum class EndOfDayTaskAction(val displayName: String) {
     MOVE_TO_TOMORROW("Tomorrow"),
@@ -21,9 +24,25 @@ enum class EndOfDayTaskAction(val displayName: String) {
     KEEP("Keep")
 }
 
+data class MigrationDayTarget(
+    val date: LocalDate,
+    val dayOfWeek: String,
+    val label: String,
+    val dateMillis: Long
+)
+
+sealed class MigrationChoice {
+    data class SpecificDate(val dateMillis: Long, val label: String) : MigrationChoice()
+    data object Inbox : MigrationChoice()
+    data object Completed : MigrationChoice()
+    data object KeepToday : MigrationChoice()
+}
+
 data class EndOfDayUiState(
     val incompleteTasks: List<TaskWithSubtasksAndCategory> = emptyList(),
     val taskActions: Map<Long, EndOfDayTaskAction> = emptyMap(),
+    val taskDestinations: Map<Long, MigrationChoice> = emptyMap(),
+    val targetDays: List<MigrationDayTarget> = emptyList(),
     val isSubmitting: Boolean = false,
     val isComplete: Boolean = false,
     val completedCount: Int = 0,
@@ -35,19 +54,42 @@ class EndOfDayViewModel(
     private val reminderScheduler: ReminderScheduler? = null
 ) : ViewModel() {
 
-    private val _customActions = MutableStateFlow<Map<Long, EndOfDayTaskAction>>(emptyMap())
+    private val _customDestinations = MutableStateFlow<Map<Long, MigrationChoice>>(emptyMap())
     private val _isSubmitting = MutableStateFlow(false)
     private val _isComplete = MutableStateFlow(false)
     private val _summaryMessage = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<EndOfDayUiState> = combine(
         taskRepository.getAllTasksWithDetails(),
-        _customActions,
+        _customDestinations,
         _isSubmitting,
         _isComplete,
         _summaryMessage
-    ) { allTasks, customActions, isSubmitting, isComplete, summaryMessage ->
+    ) { allTasks, customDestinations, isSubmitting, isComplete, summaryMessage ->
         val endOfToday = DateFormatter.getEndOfTodayMillis()
+        val today = LocalDate.now()
+        val zoneId = ZoneId.systemDefault()
+
+        // Build next 4 future days (Tomorrow, Day+2, Day+3, Day+4)
+        val targets = (1..4).map { offset ->
+            val date = today.plusDays(offset.toLong())
+            val label = when (offset) {
+                1 -> "Tomorrow"
+                else -> date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))
+            }
+            val dayOfWeek = date.format(DateTimeFormatter.ofPattern("EEE"))
+            val dateMillis = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+            MigrationDayTarget(
+                date = date,
+                dayOfWeek = dayOfWeek,
+                label = label,
+                dateMillis = dateMillis
+            )
+        }
+
+        val tomorrowMillis = targets.firstOrNull()?.dateMillis
+            ?: (DateFormatter.getStartOfTodayMillis() + 86400000L)
+        val defaultTomorrowChoice = MigrationChoice.SpecificDate(tomorrowMillis, "Tomorrow")
 
         // Incomplete tasks scheduled on or before today
         val incomplete = allTasks.filter { item ->
@@ -60,14 +102,26 @@ class EndOfDayViewModel(
                 .thenBy { it.task.dueTime ?: Int.MAX_VALUE }
         )
 
-        // Default all unmapped tasks to MOVE_TO_TOMORROW
-        val effectiveActions = incomplete.associate { taskItem ->
-            taskItem.task.id to (customActions[taskItem.task.id] ?: EndOfDayTaskAction.MOVE_TO_TOMORROW)
+        // Default all unmapped tasks to Tomorrow
+        val effectiveDestinations = incomplete.associate { taskItem ->
+            taskItem.task.id to (customDestinations[taskItem.task.id] ?: defaultTomorrowChoice)
+        }
+
+        // Map backwards to EndOfDayTaskAction for existing UI / testing compatibility
+        val legacyActions = effectiveDestinations.mapValues { (_, choice) ->
+            when (choice) {
+                is MigrationChoice.SpecificDate -> EndOfDayTaskAction.MOVE_TO_TOMORROW
+                MigrationChoice.Inbox -> EndOfDayTaskAction.MOVE_TO_INBOX
+                MigrationChoice.Completed -> EndOfDayTaskAction.MARK_COMPLETE
+                MigrationChoice.KeepToday -> EndOfDayTaskAction.KEEP
+            }
         }
 
         EndOfDayUiState(
             incompleteTasks = incomplete,
-            taskActions = effectiveActions,
+            taskActions = legacyActions,
+            taskDestinations = effectiveDestinations,
+            targetDays = targets,
             isSubmitting = isSubmitting,
             isComplete = isComplete,
             completedCount = incomplete.size,
@@ -79,16 +133,55 @@ class EndOfDayViewModel(
         initialValue = EndOfDayUiState()
     )
 
+    fun assignTaskToTargetDate(taskId: Long, target: MigrationDayTarget) {
+        val choice = MigrationChoice.SpecificDate(target.dateMillis, target.label)
+        _customDestinations.value = _customDestinations.value.toMutableMap().apply {
+            put(taskId, choice)
+        }
+    }
+
+    fun assignTaskToInbox(taskId: Long) {
+        _customDestinations.value = _customDestinations.value.toMutableMap().apply {
+            put(taskId, MigrationChoice.Inbox)
+        }
+    }
+
     fun setTaskAction(taskId: Long, action: EndOfDayTaskAction) {
-        _customActions.value = _customActions.value.toMutableMap().apply {
-            put(taskId, action)
+        val today = LocalDate.now()
+        val zoneId = ZoneId.systemDefault()
+        val tomorrowMillis = today.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+
+        val choice = when (action) {
+            EndOfDayTaskAction.MOVE_TO_TOMORROW -> MigrationChoice.SpecificDate(tomorrowMillis, "Tomorrow")
+            EndOfDayTaskAction.MOVE_TO_INBOX -> MigrationChoice.Inbox
+            EndOfDayTaskAction.MARK_COMPLETE -> MigrationChoice.Completed
+            EndOfDayTaskAction.KEEP -> MigrationChoice.KeepToday
+        }
+        _customDestinations.value = _customDestinations.value.toMutableMap().apply {
+            put(taskId, choice)
         }
     }
 
     fun applyBulkAction(action: EndOfDayTaskAction) {
         val currentTasks = uiState.value.incompleteTasks
-        val updated = currentTasks.associate { it.task.id to action }
-        _customActions.value = updated
+        val today = LocalDate.now()
+        val zoneId = ZoneId.systemDefault()
+        val tomorrowMillis = today.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+
+        val choice = when (action) {
+            EndOfDayTaskAction.MOVE_TO_TOMORROW -> MigrationChoice.SpecificDate(tomorrowMillis, "Tomorrow")
+            EndOfDayTaskAction.MOVE_TO_INBOX -> MigrationChoice.Inbox
+            EndOfDayTaskAction.MARK_COMPLETE -> MigrationChoice.Completed
+            EndOfDayTaskAction.KEEP -> MigrationChoice.KeepToday
+        }
+        val updated = currentTasks.associate { it.task.id to choice }
+        _customDestinations.value = updated
+    }
+
+    fun leaveAllInInbox() {
+        val currentTasks = uiState.value.incompleteTasks
+        val updated = currentTasks.associate { it.task.id to MigrationChoice.Inbox }
+        _customDestinations.value = updated
     }
 
     fun confirmShutdown(onFinished: () -> Unit = {}) {
@@ -98,13 +191,18 @@ class EndOfDayViewModel(
         viewModelScope.launch {
             _isSubmitting.value = true
 
-            val tomorrowStartMillis = DateFormatter.getStartOfTodayMillis() + 24 * 60 * 60 * 1000L
+            val tomorrowStartMillis = DateFormatter.getStartOfTodayMillis() + 86400000L
 
             for (taskItem in state.incompleteTasks) {
-                val action = state.taskActions[taskItem.task.id] ?: EndOfDayTaskAction.MOVE_TO_TOMORROW
-                when (action) {
-                    EndOfDayTaskAction.MOVE_TO_TOMORROW -> {
-                        val updatedTask = taskItem.task.copy(dueDate = tomorrowStartMillis)
+                val choice = state.taskDestinations[taskItem.task.id]
+                    ?: MigrationChoice.SpecificDate(tomorrowStartMillis, "Tomorrow")
+
+                when (choice) {
+                    is MigrationChoice.SpecificDate -> {
+                        val updatedTask = taskItem.task.copy(
+                            dueDate = choice.dateMillis,
+                            updatedAt = System.currentTimeMillis()
+                        )
                         taskRepository.updateTask(updatedTask)
                         if (updatedTask.dueTime != null) {
                             reminderScheduler?.scheduleReminder(updatedTask)
@@ -112,12 +210,19 @@ class EndOfDayViewModel(
                             reminderScheduler?.cancelReminder(updatedTask.id)
                         }
                     }
-                    EndOfDayTaskAction.MOVE_TO_INBOX -> {
-                        val updatedTask = taskItem.task.copy(dueDate = null, dueTime = null)
+                    MigrationChoice.Inbox -> {
+                        // Strip due date and time entirely
+                        val updatedTask = taskItem.task.copy(
+                            dueDate = null,
+                            dueTime = null,
+                            startTime = null,
+                            durationMinutes = 0,
+                            updatedAt = System.currentTimeMillis()
+                        )
                         taskRepository.updateTask(updatedTask)
                         reminderScheduler?.cancelReminder(updatedTask.id)
                     }
-                    EndOfDayTaskAction.MARK_COMPLETE -> {
+                    MigrationChoice.Completed -> {
                         if (taskItem.task.recurrenceRule != null) {
                             val next = taskRepository.completeTaskAndGenerateNext(taskItem.task.id)
                             reminderScheduler?.cancelReminder(taskItem.task.id)
@@ -129,7 +234,7 @@ class EndOfDayViewModel(
                             reminderScheduler?.cancelReminder(taskItem.task.id)
                         }
                     }
-                    EndOfDayTaskAction.KEEP -> {
+                    MigrationChoice.KeepToday -> {
                         // Keep unchanged on current schedule
                     }
                 }
@@ -143,7 +248,7 @@ class EndOfDayViewModel(
     }
 
     fun resetState() {
-        _customActions.value = emptyMap()
+        _customDestinations.value = emptyMap()
         _isSubmitting.value = false
         _isComplete.value = false
         _summaryMessage.value = null

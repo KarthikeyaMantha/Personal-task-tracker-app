@@ -7,6 +7,7 @@ import com.personal.daymark.core.habits.HabitCalculationHelper
 import com.personal.daymark.data.repository.FocusRepository
 import com.personal.daymark.data.repository.HabitRepository
 import com.personal.daymark.data.repository.TaskRepository
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -36,9 +37,10 @@ class InsightsViewModel(
     private fun buildInsightsFlow() = combine(
         buildTasksMetricsFlow(),
         buildFocusMetricsFlow(),
-        buildHabitMetricsFlow()
-    ) { tasksMetrics, focusMetrics, habitMetrics ->
-        val hasAnyData = tasksMetrics.hasData || focusMetrics.hasData || habitMetrics.hasData
+        buildHabitMetricsFlow(),
+        buildHealthMetricsFlow()
+    ) { tasksMetrics, focusMetrics, habitMetrics, healthMetrics ->
+        val hasAnyData = tasksMetrics.hasData || focusMetrics.hasData || habitMetrics.hasData || healthMetrics.hasData
 
         val summary = InsightsSummary(
             tasksCompletedToday = tasksMetrics.completedToday,
@@ -57,6 +59,14 @@ class InsightsViewModel(
             weeklyHabitCompletionRate = habitMetrics.weeklyCompletionRate,
             bestStreakHabitName = habitMetrics.bestHabitName,
             bestStreakCount = habitMetrics.bestStreak,
+
+            waterTrendChart = healthMetrics.waterChart,
+            sleepTrendChart = healthMetrics.sleepChart,
+            moodTrendChart = healthMetrics.moodChart,
+            medicineAdherenceText = healthMetrics.adherenceText,
+            medicineDosesTaken = healthMetrics.dosesTaken,
+            medicineDosesTotal = healthMetrics.dosesTotal,
+            hasHealthData = healthMetrics.hasData,
 
             hasAnyData = hasAnyData
         )
@@ -220,6 +230,95 @@ class InsightsViewModel(
             bestHabitName = bestHabit,
             bestStreak = maxStreak,
             hasData = activeCount > 0 && activeWithLogs.any { it.logs.isNotEmpty() }
+        )
+    }
+
+    private data class HealthMetrics(
+        val waterChart: List<DailyMetric>,
+        val sleepChart: List<DailyMetric>,
+        val moodChart: List<DailyMetric>,
+        val adherenceText: String?,
+        val dosesTaken: Int,
+        val dosesTotal: Int,
+        val hasData: Boolean
+    )
+
+    private fun buildHealthMetricsFlow(): Flow<HealthMetrics> = combine(
+        taskRepository.getAllMedicines(),
+        habitRepository.getActiveHabitsWithLogs()
+    ) { medicines: List<com.personal.daymark.data.local.entity.TaskEntity>, activeWithLogs: List<com.personal.daymark.data.local.entity.HabitWithLogs> ->
+        val today = LocalDate.now()
+        val startOfWeek = getStartOfWeek()
+        val now = System.currentTimeMillis()
+
+        // Medicine Adherence
+        val (dosesTaken, dosesTotal) = taskRepository.getMedicineAdherenceStats(startOfWeek, now)
+        val adherenceText = if (dosesTotal > 0) {
+            val percentage = (dosesTaken * 100) / dosesTotal
+            "Took $dosesTaken/$dosesTotal doses this week — $percentage%"
+        } else if (medicines.isNotEmpty()) {
+            "All active medicine schedules on track"
+        } else null
+
+        // 7-day health metrics
+        val waterHabit = activeWithLogs.firstOrNull { it.habit.healthMetricType.equals("water", ignoreCase = true) }
+        val sleepHabit = activeWithLogs.firstOrNull { it.habit.healthMetricType.equals("sleep", ignoreCase = true) }
+        val moodHabit = activeWithLogs.firstOrNull { it.habit.healthMetricType.equals("mood", ignoreCase = true) }
+
+        val waterChart = (6 downTo 0).map { daysAgo ->
+            val date = today.minusDays(daysAgo.toLong())
+            val log = waterHabit?.logs?.firstOrNull { it.date == date.toEpochDay() }
+            val value = log?.value ?: 0f
+            DailyMetric(
+                dayLabel = date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                date = date,
+                value = value,
+                displayValue = if (value > 0f) "${value.toInt()} gl" else "0",
+                isToday = daysAgo == 0
+            )
+        }
+
+        val sleepChart = (6 downTo 0).map { daysAgo ->
+            val date = today.minusDays(daysAgo.toLong())
+            val log = sleepHabit?.logs?.firstOrNull { it.date == date.toEpochDay() }
+            val value = log?.value ?: 0f
+            DailyMetric(
+                dayLabel = date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                date = date,
+                value = value,
+                displayValue = if (value > 0f) "${String.format(Locale.US, "%.1f", value)}h" else "0h",
+                isToday = daysAgo == 0
+            )
+        }
+
+        val moodEmojis = mapOf(1 to "😞", 2 to "😐", 3 to "🙂", 4 to "😊", 5 to "😄")
+        val moodChart = (6 downTo 0).map { daysAgo ->
+            val date = today.minusDays(daysAgo.toLong())
+            val log = moodHabit?.logs?.firstOrNull { it.date == date.toEpochDay() }
+            val value = log?.value ?: 0f
+            DailyMetric(
+                dayLabel = date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                date = date,
+                value = value,
+                displayValue = moodEmojis[value.toInt()] ?: "—",
+                isToday = daysAgo == 0
+            )
+        }
+
+        val hasData = dosesTotal > 0 ||
+                medicines.isNotEmpty() ||
+                waterChart.any { it.value > 0f } ||
+                sleepChart.any { it.value > 0f } ||
+                moodChart.any { it.value > 0f }
+
+        HealthMetrics(
+            waterChart = waterChart,
+            sleepChart = sleepChart,
+            moodChart = moodChart,
+            adherenceText = adherenceText,
+            dosesTaken = dosesTaken,
+            dosesTotal = dosesTotal,
+            hasData = hasData
         )
     }
 

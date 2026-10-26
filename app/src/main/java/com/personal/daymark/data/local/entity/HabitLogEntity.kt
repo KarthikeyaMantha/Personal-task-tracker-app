@@ -34,5 +34,9 @@ data class HabitLogEntity(
     @ColumnInfo(name = "is_completed")
     val isCompleted: Boolean = true,
     @ColumnInfo(name = "logged_at")
-    val loggedAt: Long = System.currentTimeMillis()
+    val loggedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "value")
+    val value: Float? = null, // e.g. 5.0 (glasses), 7.5 (hours), 4.0 (mood 1-5)
+    @ColumnInfo(name = "note")
+    val note: String? = null // optional note for mood or health log
 )

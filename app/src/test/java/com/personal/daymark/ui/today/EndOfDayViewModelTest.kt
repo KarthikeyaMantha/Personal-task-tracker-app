@@ -209,4 +209,82 @@ class EndOfDayViewModelTest {
 
         collectJob.cancel()
     }
+
+    @Test
+    fun smartMigrationAssignToSpecificFutureDateAndInbox() = runTest(testDispatcher) {
+        val collectJob = launch { viewModel.uiState.collect() }
+
+        val today = DateFormatter.getStartOfTodayMillis() + 1000L
+        fakeRepository.taskItems.value = listOf(
+            TaskWithSubtasksAndCategory(task = TaskEntity(id = 10, title = "Task Day 3", dueDate = today, isCompleted = false)),
+            TaskWithSubtasksAndCategory(task = TaskEntity(id = 11, title = "Task Inbox Drop", dueDate = today, dueTime = 720, startTime = "12:00", durationMinutes = 30, isCompleted = false))
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(4, state.targetDays.size)
+        val targetDay3 = state.targetDays[2] // Day +3
+
+        // Assign task 10 to Day +3
+        viewModel.assignTaskToTargetDate(10L, targetDay3)
+        // Assign task 11 to Inbox
+        viewModel.assignTaskToInbox(11L)
+        advanceUntilIdle()
+
+        val updatedState = viewModel.uiState.value
+        val choice10 = updatedState.taskDestinations[10L] as com.personal.daymark.ui.screens.today.MigrationChoice.SpecificDate
+        assertEquals(targetDay3.dateMillis, choice10.dateMillis)
+        assertEquals(com.personal.daymark.ui.screens.today.MigrationChoice.Inbox, updatedState.taskDestinations[11L])
+
+        // Confirm shutdown
+        var finished = false
+        viewModel.confirmShutdown { finished = true }
+        advanceUntilIdle()
+
+        assertTrue(finished)
+        assertTrue(viewModel.uiState.value.isComplete)
+        assertEquals("Day closed. Have a great evening!", viewModel.uiState.value.summaryMessage)
+
+        // Verify task 10 has targetDay3.dateMillis
+        val task10 = fakeRepository.taskItems.value.first { it.task.id == 10L }.task
+        assertEquals(targetDay3.dateMillis, task10.dueDate)
+
+        // Verify task 11 has dueDate, dueTime, startTime null and durationMinutes 0
+        val task11 = fakeRepository.taskItems.value.first { it.task.id == 11L }.task
+        assertNull(task11.dueDate)
+        assertNull(task11.dueTime)
+        assertNull(task11.startTime)
+        assertEquals(0, task11.durationMinutes)
+
+        collectJob.cancel()
+    }
+
+    @Test
+    fun leaveAllInInboxAssignsEveryIncompleteTaskToInbox() = runTest(testDispatcher) {
+        val collectJob = launch { viewModel.uiState.collect() }
+
+        val today = DateFormatter.getStartOfTodayMillis() + 1000L
+        fakeRepository.taskItems.value = listOf(
+            TaskWithSubtasksAndCategory(task = TaskEntity(id = 21, title = "Task A", dueDate = today, isCompleted = false)),
+            TaskWithSubtasksAndCategory(task = TaskEntity(id = 22, title = "Task B", dueDate = today, isCompleted = false))
+        )
+        advanceUntilIdle()
+
+        viewModel.leaveAllInInbox()
+        advanceUntilIdle()
+
+        val destinations = viewModel.uiState.value.taskDestinations
+        assertEquals(com.personal.daymark.ui.screens.today.MigrationChoice.Inbox, destinations[21L])
+        assertEquals(com.personal.daymark.ui.screens.today.MigrationChoice.Inbox, destinations[22L])
+
+        viewModel.confirmShutdown()
+        advanceUntilIdle()
+
+        val taskA = fakeRepository.taskItems.value.first { it.task.id == 21L }.task
+        val taskB = fakeRepository.taskItems.value.first { it.task.id == 22L }.task
+        assertNull(taskA.dueDate)
+        assertNull(taskB.dueDate)
+
+        collectJob.cancel()
+    }
 }

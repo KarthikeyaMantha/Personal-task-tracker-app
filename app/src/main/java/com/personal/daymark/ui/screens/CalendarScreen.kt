@@ -8,7 +8,11 @@ import androidx.compose.ui.Modifier
  */
 @Composable
 fun CalendarScreen(
+    onNavigateToManageTemplates: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    com.personal.daymark.ui.screens.calendar.CalendarScreen(modifier = modifier)
+    com.personal.daymark.ui.screens.calendar.CalendarScreen(
+        onNavigateToManageTemplates = onNavigateToManageTemplates,
+        modifier = modifier
+    )
 }

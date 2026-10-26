@@ -166,7 +166,9 @@ fun HabitsScreen(
                             onToggleToday = { viewModel.toggleCompletionToday(habitItem.habit.id) },
                             onToggleDate = { date -> viewModel.toggleCompletionForDate(habitItem.habit.id, date) },
                             onEditHabit = { viewModel.openEditHabit(habitItem.habit) },
-                            onDeleteHabit = { viewModel.requestDeleteConfirmation(habitItem.habit) }
+                            onDeleteHabit = { viewModel.requestDeleteConfirmation(habitItem.habit) },
+                            onIncrementWater = { viewModel.incrementWater(habitItem.habit.id) },
+                            onLogHealthMetric = { value, note -> viewModel.logHealthMetric(habitItem.habit.id, value, note) }
                         )
                     }
                 }
@@ -180,8 +182,19 @@ fun HabitsScreen(
             habitToEdit = uiState.habitToEdit,
             categories = categories,
             onDismissRequest = { viewModel.closeAddEditSheet() },
-            onSaveHabit = { id, name, note, frequency, targetWeekdays, colorHex, categoryId ->
-                viewModel.saveHabit(id, name, note, frequency, targetWeekdays, colorHex, categoryId)
+            onSaveHabit = { id, name, note, frequency, targetWeekdays, colorHex, categoryId, healthMetricType, targetValue, unit ->
+                viewModel.saveHabit(
+                    id = id,
+                    name = name,
+                    note = note,
+                    frequency = frequency,
+                    targetWeekdays = targetWeekdays,
+                    colorHex = colorHex,
+                    categoryId = categoryId,
+                    healthMetricType = healthMetricType,
+                    targetValue = targetValue,
+                    unit = unit
+                )
             }
         )
     }

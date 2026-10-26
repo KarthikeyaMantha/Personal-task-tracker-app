@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.personal.daymark.data.local.entity.parsedColor
 import androidx.compose.material3.Icon
@@ -35,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -142,6 +144,38 @@ fun AddEditTaskBottomSheet(
                     viewModel.saveTask()
                 })
             )
+
+            // Inline NLI Detection Chips
+            uiState.parsedResult?.let { parsed ->
+                if (parsed.hasDetections) {
+                    val chips = parsed.getExplanationChips()
+                    if (chips.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            chips.forEach { chipText ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
+                                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Text(
+                                        text = chipText,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -705,6 +739,136 @@ fun AddEditTaskBottomSheet(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
+                }
+            }
+
+            // Medicine & Supplement Tracking Toggle
+            Spacer(modifier = Modifier.height(18.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (uiState.isMedicine) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f)
+                        else MaterialTheme.colorScheme.surfaceContainerLow
+                    )
+                    .clickable { viewModel.onIsMedicineToggled(!uiState.isMedicine) }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Medication,
+                        contentDescription = null,
+                        tint = if (uiState.isMedicine) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Column {
+                        Text(
+                            text = "This is a medicine/supplement",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Track dosage, form, stock, and refill alerts",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Switch(
+                    checked = uiState.isMedicine,
+                    onCheckedChange = viewModel::onIsMedicineToggled
+                )
+            }
+
+            // Expanded Medicine details
+            if (uiState.isMedicine) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Dosage",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            DaymarkTextField(
+                                value = uiState.dosage,
+                                onValueChange = viewModel::onDosageChanged,
+                                placeholder = "e.g. 500mg, 1 tablet",
+                                singleLine = true
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Form",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            DaymarkTextField(
+                                value = uiState.medicineForm,
+                                onValueChange = viewModel::onMedicineFormChanged,
+                                placeholder = "e.g. tablet, capsule",
+                                singleLine = true
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Stock Count",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            DaymarkTextField(
+                                value = uiState.stockCount?.toString() ?: "",
+                                onValueChange = { str ->
+                                    viewModel.onStockCountChanged(str.filter { it.isDigit() }.toIntOrNull())
+                                },
+                                placeholder = "e.g. 24",
+                                singleLine = true
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Refill Threshold",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            DaymarkTextField(
+                                value = uiState.refillThreshold?.toString() ?: "",
+                                onValueChange = { str ->
+                                    viewModel.onRefillThresholdChanged(str.filter { it.isDigit() }.toIntOrNull())
+                                },
+                                placeholder = "e.g. 7",
+                                singleLine = true
+                            )
+                        }
+                    }
                 }
             }
 

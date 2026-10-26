@@ -36,7 +36,13 @@ data class HabitEntity(
     @ColumnInfo(name = "is_archived")
     val isArchived: Boolean = false,
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "health_metric_type")
+    val healthMetricType: String? = null, // "water", "sleep", "mood", or null
+    @ColumnInfo(name = "target_value")
+    val targetValue: Int? = null, // e.g., 8 glasses, 8 hours
+    @ColumnInfo(name = "unit")
+    val unit: String? = null // e.g., "glasses", "hours"
 )
 
 fun HabitEntity.parsedColor(): androidx.compose.ui.graphics.Color {

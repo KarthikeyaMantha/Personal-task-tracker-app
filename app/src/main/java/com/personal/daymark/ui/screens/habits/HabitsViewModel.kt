@@ -25,7 +25,9 @@ data class HabitItemUiState(
     val currentStreak: Int,
     val completionsLast7Days: Int,
     val completionsLast30Days: Int,
-    val historyDays: List<HabitDayHistory>
+    val historyDays: List<HabitDayHistory>,
+    val todayValue: Float? = null,
+    val todayNote: String? = null
 )
 
 data class HabitsUiState(
@@ -74,6 +76,7 @@ class HabitsViewModel(
                 val last7 = HabitCalculationHelper.calculateCompletionsInWindow(logs, today, 7)
                 val last30 = HabitCalculationHelper.calculateCompletionsInWindow(logs, today, 30)
                 val history = HabitCalculationHelper.buildHistoryDays(habit, logs, today, daysCount = 14)
+                val todayLog = logs.find { it.dateString == today.toString() || it.date == today.toEpochDay() }
 
                 HabitItemUiState(
                     habit = habit,
@@ -83,7 +86,9 @@ class HabitsViewModel(
                     currentStreak = streak,
                     completionsLast7Days = last7,
                     completionsLast30Days = last30,
-                    historyDays = history
+                    historyDays = history,
+                    todayValue = todayLog?.value,
+                    todayNote = todayLog?.note
                 )
             }
 
@@ -140,6 +145,18 @@ class HabitsViewModel(
         }
     }
 
+    fun incrementWater(habitId: Long) {
+        viewModelScope.launch {
+            habitRepository.incrementWater(habitId, LocalDate.now())
+        }
+    }
+
+    fun logHealthMetric(habitId: Long, value: Float, note: String? = null) {
+        viewModelScope.launch {
+            habitRepository.logHealthMetric(habitId, value, note, LocalDate.now())
+        }
+    }
+
     fun saveHabit(
         id: Long = 0L,
         name: String,
@@ -147,7 +164,10 @@ class HabitsViewModel(
         frequency: String,
         targetWeekdays: Int,
         colorHex: String,
-        categoryId: Long?
+        categoryId: Long?,
+        healthMetricType: String? = null,
+        targetValue: Int? = null,
+        unit: String? = null
     ) {
         viewModelScope.launch {
             if (id > 0L) {
@@ -158,7 +178,10 @@ class HabitsViewModel(
                     frequency = frequency,
                     targetWeekdays = targetWeekdays,
                     colorHex = colorHex,
-                    categoryId = categoryId
+                    categoryId = categoryId,
+                    healthMetricType = healthMetricType,
+                    targetValue = targetValue,
+                    unit = unit
                 ) ?: HabitEntity(
                     id = id,
                     name = name,
@@ -166,7 +189,10 @@ class HabitsViewModel(
                     frequency = frequency,
                     targetWeekdays = targetWeekdays,
                     colorHex = colorHex,
-                    categoryId = categoryId
+                    categoryId = categoryId,
+                    healthMetricType = healthMetricType,
+                    targetValue = targetValue,
+                    unit = unit
                 )
                 habitRepository.updateHabit(updated)
             } else {
@@ -176,7 +202,10 @@ class HabitsViewModel(
                     frequency = frequency,
                     targetWeekdays = targetWeekdays,
                     colorHex = colorHex,
-                    categoryId = categoryId
+                    categoryId = categoryId,
+                    healthMetricType = healthMetricType,
+                    targetValue = targetValue,
+                    unit = unit
                 )
             }
             closeAddEditSheet()

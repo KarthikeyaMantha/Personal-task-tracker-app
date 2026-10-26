@@ -94,6 +94,7 @@ fun TasksScreen(
 
     var selectedTaskToEdit by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var recurringTaskToDelete by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
+    var taskToDefer by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var isAddSheetOpen by remember { mutableStateOf(false) }
     var isManageCategoriesOpen by remember { mutableStateOf(false) }
     var isSearchOpen by remember { mutableStateOf(false) }
@@ -457,6 +458,10 @@ fun TasksScreen(
                             subtasksCompleted = taskItem.subtasks.count { it.isCompleted },
                             subtasksTotal = taskItem.subtasks.size,
                             priorityColor = getPriorityColor(taskItem.task.priority),
+                            isMedicine = taskItem.task.isMedicine,
+                            dosage = taskItem.task.dosage,
+                            stockCount = taskItem.task.stockCount,
+                            onSnooze = { taskToDefer = taskItem },
                             onClick = { selectedTaskToEdit = taskItem }
                         )
                     }
@@ -508,6 +513,30 @@ fun TasksScreen(
         AddEditTaskBottomSheet(
             viewModel = editViewModel,
             onDismissRequest = { selectedTaskToEdit = null }
+        )
+    }
+
+    // Defer / Snooze Task Dialog
+    if (taskToDefer != null) {
+        val taskItem = taskToDefer!!
+        com.personal.daymark.ui.components.DeferTaskDialog(
+            taskTitle = taskItem.task.title,
+            onDismissRequest = { taskToDefer = null },
+            onDeferToTomorrow = {
+                val tomorrowMillis = DateFormatter.getStartOfTodayMillis() + 86400000L
+                viewModel.deferTask(taskItem, tomorrowMillis, "Deferred to Tomorrow")
+                taskToDefer = null
+            },
+            onDeferToNextWeek = {
+                val nextWeekMillis = DateFormatter.getStartOfTodayMillis() + 7 * 86400000L
+                viewModel.deferTask(taskItem, nextWeekMillis, "Deferred to Next Week")
+                taskToDefer = null
+            },
+            onPickCustomDate = { selectedMillis ->
+                val dateLabel = DateFormatter.formatRelativeDate(selectedMillis)
+                viewModel.deferTask(taskItem, selectedMillis, "Deferred to $dateLabel")
+                taskToDefer = null
+            }
         )
     }
 

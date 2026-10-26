@@ -37,6 +37,15 @@ data class InsightsSummary(
     val bestStreakHabitName: String? = null,
     val bestStreakCount: Int = 0,
 
+    // Health & Wellness (Phase 22)
+    val waterTrendChart: List<DailyMetric> = emptyList(),
+    val sleepTrendChart: List<DailyMetric> = emptyList(),
+    val moodTrendChart: List<DailyMetric> = emptyList(),
+    val medicineAdherenceText: String? = null,
+    val medicineDosesTaken: Int = 0,
+    val medicineDosesTotal: Int = 0,
+    val hasHealthData: Boolean = false,
+
     // Overall emptiness check
     val hasAnyData: Boolean = false
 )

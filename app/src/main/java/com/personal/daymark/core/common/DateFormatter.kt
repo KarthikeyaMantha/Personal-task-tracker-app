@@ -48,6 +48,22 @@ object DateFormatter {
         }
     }
 
+    fun formatRelativeDate(dueDateMillis: Long?): String {
+        return formatDueDate(dueDateMillis, null) ?: ""
+    }
+
+    fun formatTime(dueTimeMinutes: Int?): String {
+        if (dueTimeMinutes == null) return ""
+        val hours = dueTimeMinutes / 60
+        val minutes = dueTimeMinutes % 60
+        val amPm = if (hours >= 12) "PM" else "AM"
+        val displayHour = when (val h = hours % 12) {
+            0 -> 12
+            else -> h
+        }
+        return String.format(Locale.getDefault(), "%d:%02d %s", displayHour, minutes, amPm)
+    }
+
     fun getStartOfTodayMillis(): Long {
         return Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)

@@ -48,7 +48,11 @@ class TodayViewModelTest {
             return id
         }
 
-        override suspend fun updateTask(task: TaskEntity) {}
+        override suspend fun updateTask(task: TaskEntity) {
+            taskItems.value = taskItems.value.map {
+                if (it.task.id == task.id) it.copy(task = task) else it
+            }
+        }
         override suspend fun deleteTask(task: TaskEntity) {
             taskItems.value = taskItems.value.filterNot { it.task.id == task.id }
         }
@@ -155,5 +159,36 @@ class TodayViewModelTest {
         assertEquals(0, state.todayTasks.size)
         assertEquals(0, state.overdueTasks.size)
         assertEquals(0f, state.progressRatio, 0.01f)
+    }
+
+    @Test
+    fun deferTask_updatesDueDateAndRemovesFromToday() = runTest {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect()
+        }
+
+        val startOfToday = DateFormatter.getStartOfTodayMillis()
+        val taskId = fakeTaskRepo.createTask(
+            TaskEntity(
+                title = "Task for Today",
+                dueDate = startOfToday,
+                isCompleted = false
+            )
+        )
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.todayTasks.size)
+
+        val taskItem = viewModel.uiState.value.todayTasks.first()
+        val tomorrowMillis = startOfToday + 86400000L
+
+        viewModel.deferTask(
+            taskItem = taskItem,
+            targetDueDate = tomorrowMillis,
+            confirmationMessage = "Deferred to Tomorrow"
+        )
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.uiState.value.todayTasks.size)
     }
 }

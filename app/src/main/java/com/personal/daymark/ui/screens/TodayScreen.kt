@@ -57,6 +57,7 @@ import com.personal.daymark.ui.components.DaymarkCard
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.personal.daymark.ui.components.DaymarkProgressCard
+import com.personal.daymark.ui.components.DeferTaskDialog
 import com.personal.daymark.ui.components.DaymarkTopAppBar
 import com.personal.daymark.ui.components.SwipeableTaskRow
 import com.personal.daymark.ui.components.getPriorityColor
@@ -102,6 +103,7 @@ fun TodayScreen(
 
     var selectedTaskToEdit by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var recurringTaskToDelete by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
+    var taskToDefer by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var isAddSheetOpen by remember { mutableStateOf(false) }
     var isSearchOpen by remember { mutableStateOf(false) }
     var isFocusOpen by remember { mutableStateOf(false) }
@@ -427,6 +429,10 @@ fun TodayScreen(
                             subtasksCompleted = taskItem.subtasks.count { it.isCompleted },
                             subtasksTotal = taskItem.subtasks.size,
                             priorityColor = getPriorityColor(taskItem.task.priority),
+                            isMedicine = taskItem.task.isMedicine,
+                            dosage = taskItem.task.dosage,
+                            stockCount = taskItem.task.stockCount,
+                            onSnooze = { taskToDefer = taskItem },
                             onClick = { selectedTaskToEdit = taskItem }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -493,6 +499,10 @@ fun TodayScreen(
                             subtasksCompleted = taskItem.subtasks.count { it.isCompleted },
                             subtasksTotal = taskItem.subtasks.size,
                             priorityColor = getPriorityColor(taskItem.task.priority),
+                            isMedicine = taskItem.task.isMedicine,
+                            dosage = taskItem.task.dosage,
+                            stockCount = taskItem.task.stockCount,
+                            onSnooze = { taskToDefer = taskItem },
                             onClick = { selectedTaskToEdit = taskItem }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -605,6 +615,30 @@ fun TodayScreen(
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(message)
                 }
+            }
+        )
+    }
+
+    // Defer / Snooze Task Dialog
+    if (taskToDefer != null) {
+        val taskItem = taskToDefer!!
+        DeferTaskDialog(
+            taskTitle = taskItem.task.title,
+            onDismissRequest = { taskToDefer = null },
+            onDeferToTomorrow = {
+                val tomorrowMillis = DateFormatter.getStartOfTodayMillis() + 86400000L
+                viewModel.deferTask(taskItem, tomorrowMillis, "Deferred to Tomorrow")
+                taskToDefer = null
+            },
+            onDeferToNextWeek = {
+                val nextWeekMillis = DateFormatter.getStartOfTodayMillis() + 7 * 86400000L
+                viewModel.deferTask(taskItem, nextWeekMillis, "Deferred to Next Week")
+                taskToDefer = null
+            },
+            onPickCustomDate = { selectedMillis ->
+                val dateLabel = DateFormatter.formatRelativeDate(selectedMillis)
+                viewModel.deferTask(taskItem, selectedMillis, "Deferred to $dateLabel")
+                taskToDefer = null
             }
         )
     }

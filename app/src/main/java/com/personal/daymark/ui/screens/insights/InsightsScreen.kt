@@ -20,9 +20,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.SentimentSatisfied
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.AutoGraph
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DateRange
@@ -355,7 +360,136 @@ private fun InsightsContent(
             }
         }
 
+        // Health & Wellness Section (Phase 22)
+        HealthWellnessSection(summary = summary)
+
         Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun HealthWellnessSection(
+    summary: InsightsSummary,
+    modifier: Modifier = Modifier
+) {
+    DaymarkCard(modifier = modifier) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = "Health & Wellness",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Medicine Adherence
+            if (summary.medicineAdherenceText != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Medication,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Medicine Adherence",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = summary.medicineAdherenceText,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            // Water Intake Trend (if tracked)
+            if (summary.waterTrendChart.any { it.value > 0f }) {
+                Text(
+                    text = "Water Intake (Past 7 Days)",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                MinimalistBarChart(
+                    metrics = summary.waterTrendChart,
+                    barColor = Color(0xFF38BDF8),
+                    todayBarColor = Color(0xFF0284C7),
+                    chartHeight = 110.dp
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            // Sleep Duration Trend (if tracked)
+            if (summary.sleepTrendChart.any { it.value > 0f }) {
+                Text(
+                    text = "Sleep Duration (Hours)",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                MinimalistBarChart(
+                    metrics = summary.sleepTrendChart,
+                    barColor = Color(0xFFA78BFA),
+                    todayBarColor = Color(0xFF7C3AED),
+                    chartHeight = 110.dp
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            // Mood Trend (if tracked)
+            if (summary.moodTrendChart.any { it.value > 0f }) {
+                Text(
+                    text = "Mood Balance (Past 7 Days)",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                MinimalistBarChart(
+                    metrics = summary.moodTrendChart,
+                    barColor = Color(0xFFFBBF24),
+                    todayBarColor = Color(0xFFD97706),
+                    chartHeight = 110.dp
+                )
+            }
+
+            // Fallback if no health metrics logged yet
+            if (summary.medicineAdherenceText == null &&
+                summary.waterTrendChart.none { it.value > 0f } &&
+                summary.sleepTrendChart.none { it.value > 0f } &&
+                summary.moodTrendChart.none { it.value > 0f }
+            ) {
+                Text(
+                    text = "Track medicines in Tasks or create health habits (Water, Sleep, Mood) to visualize your daily wellness trends here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

@@ -183,6 +183,25 @@ class TodayViewModel(
         }
     }
 
+    fun deferTask(
+        taskItem: TaskWithSubtasksAndCategory,
+        targetDueDate: Long,
+        confirmationMessage: String = "Deferred to Tomorrow"
+    ) {
+        viewModelScope.launch {
+            val dueTime = taskItem.task.dueTime ?: (9 * 60)
+            val updatedTask = taskItem.task.copy(
+                dueDate = targetDueDate,
+                dueTime = dueTime
+            )
+            taskRepository.updateTask(updatedTask)
+            if (reminderScheduler != null) {
+                reminderScheduler.scheduleReminder(updatedTask)
+            }
+            _eventChannel.send(TodayEvent.ShowSnackbar(message = confirmationMessage))
+        }
+    }
+
     fun undoDelete() {
         val taskToRestore = recentlyDeletedTask ?: return
         viewModelScope.launch {

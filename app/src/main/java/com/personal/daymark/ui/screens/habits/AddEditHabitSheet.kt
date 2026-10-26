@@ -81,7 +81,10 @@ fun AddEditHabitSheet(
         frequency: String,
         targetWeekdays: Int,
         colorHex: String,
-        categoryId: Long?
+        categoryId: Long?,
+        healthMetricType: String?,
+        targetValue: Int?,
+        unit: String?
     ) -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -92,6 +95,9 @@ fun AddEditHabitSheet(
     var targetWeekdays by remember(habitToEdit) { mutableIntStateOf(habitToEdit?.targetWeekdays ?: 127) }
     var selectedColorHex by remember(habitToEdit) { mutableStateOf(habitToEdit?.colorHex ?: HABIT_COLORS.first()) }
     var selectedCategoryId by remember(habitToEdit) { mutableStateOf(habitToEdit?.categoryId) }
+    var healthMetricType by remember(habitToEdit) { mutableStateOf(habitToEdit?.healthMetricType) }
+    var targetValue by remember(habitToEdit) { mutableIntStateOf(habitToEdit?.targetValue ?: 8) }
+    var unit by remember(habitToEdit) { mutableStateOf(habitToEdit?.unit ?: "glasses") }
     var isNameError by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
@@ -141,6 +147,74 @@ fun AddEditHabitSheet(
                 maxLines = 3,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Health Habit Type
+            Spacer(modifier = Modifier.height(18.dp))
+            Text(
+                text = "Habit Type",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = healthMetricType == null,
+                    onClick = { healthMetricType = null },
+                    label = { Text("Standard") }
+                )
+                FilterChip(
+                    selected = healthMetricType == "water",
+                    onClick = {
+                        healthMetricType = "water"
+                        if (name.isBlank() || name == "Sleep Duration" || name == "Daily Mood Check-in") name = "Water Intake"
+                        targetValue = 8
+                        unit = "glasses"
+                    },
+                    label = { Text("Water 💧") }
+                )
+                FilterChip(
+                    selected = healthMetricType == "sleep",
+                    onClick = {
+                        healthMetricType = "sleep"
+                        if (name.isBlank() || name == "Water Intake" || name == "Daily Mood Check-in") name = "Sleep Duration"
+                        targetValue = 8
+                        unit = "hours"
+                    },
+                    label = { Text("Sleep 🌙") }
+                )
+                FilterChip(
+                    selected = healthMetricType == "mood",
+                    onClick = {
+                        healthMetricType = "mood"
+                        if (name.isBlank() || name == "Water Intake" || name == "Sleep Duration") name = "Daily Mood Check-in"
+                        targetValue = 5
+                        unit = "rating"
+                    },
+                    label = { Text("Mood 🙂") }
+                )
+            }
+
+            if (healthMetricType != null && healthMetricType != "mood") {
+                Spacer(modifier = Modifier.height(10.dp))
+                Column {
+                    Text(
+                        text = "Daily Target ($unit)",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    DaymarkTextField(
+                        value = targetValue.toString(),
+                        onValueChange = { str ->
+                            targetValue = str.filter { it.isDigit() }.toIntOrNull() ?: 1
+                        },
+                        singleLine = true
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -308,7 +382,10 @@ fun AddEditHabitSheet(
                                 frequency,
                                 targetWeekdays,
                                 selectedColorHex,
-                                selectedCategoryId
+                                selectedCategoryId,
+                                healthMetricType,
+                                targetValue.takeIf { healthMetricType != null },
+                                unit.takeIf { healthMetricType != null }
                             )
                         }
                     },

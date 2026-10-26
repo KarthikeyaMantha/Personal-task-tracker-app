@@ -19,14 +19,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.personal.daymark.ui.theme.DaymarkTheme
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.draw.clip
+
 /**
  * Reusable Daymark Card adhering to the serene, tactile design system.
  * Uses medium corner radius, subtle borders, and tonal surfaces without excessive shadows.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DaymarkCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     shape: Shape = RoundedCornerShape(16.dp),
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
     borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
@@ -34,7 +40,22 @@ fun DaymarkCard(
 ) {
     val border = BorderStroke(1.dp, borderColor)
 
-    if (onClick != null) {
+    if (onLongClick != null) {
+        Card(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .combinedClickable(
+                    onClick = { onClick?.invoke() },
+                    onLongClick = onLongClick
+                ),
+            shape = shape,
+            colors = CardDefaults.cardColors(containerColor = containerColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = border,
+            content = content
+        )
+    } else if (onClick != null) {
         Card(
             onClick = onClick,
             modifier = modifier.fillMaxWidth(),

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Daymark</string>
+    <string name="health_widget_name">Health &amp; Medicines</string>
+    <string name="health_widget_description">Quick view of today\'s medicines, water intake, and mood logging.</string>
 </resources>

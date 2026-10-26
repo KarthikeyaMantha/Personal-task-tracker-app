@@ -12,6 +12,8 @@ import com.personal.daymark.data.repository.SettingsRepository
 import com.personal.daymark.data.repository.SettingsRepositoryImpl
 import com.personal.daymark.data.repository.TaskRepository
 import com.personal.daymark.data.repository.TaskRepositoryImpl
+import com.personal.daymark.data.repository.TemplateRepository
+import com.personal.daymark.data.repository.TimeBlockRepository
 import com.personal.daymark.data.repository.daymarkDataStore
 
 interface AppContainer {
@@ -21,6 +23,8 @@ interface AppContainer {
     val habitRepository: HabitRepository
     val focusRepository: FocusRepository
     val settingsRepository: SettingsRepository
+    val timeBlockRepository: TimeBlockRepository
+    val templateRepository: TemplateRepository
     val reminderScheduler: com.personal.daymark.core.notifications.ReminderScheduler
     val focusTimerManager: com.personal.daymark.core.focus.FocusTimerManager
     val backupManager: com.personal.daymark.core.backup.BackupManager
@@ -61,6 +65,20 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val settingsRepository: SettingsRepository by lazy {
         SettingsRepositoryImpl(
             dataStore = context.daymarkDataStore
+        )
+    }
+
+    override val timeBlockRepository: com.personal.daymark.data.repository.TimeBlockRepository by lazy {
+        com.personal.daymark.data.repository.TimeBlockRepositoryImpl(
+            timeBlockDao = database.timeBlockDao()
+        )
+    }
+
+    override val templateRepository: com.personal.daymark.data.repository.TemplateRepository by lazy {
+        com.personal.daymark.data.repository.TemplateRepositoryImpl(
+            dayTemplateDao = database.dayTemplateDao(),
+            taskDao = database.taskDao(),
+            timeBlockDao = database.timeBlockDao()
         )
     }
 

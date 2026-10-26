@@ -42,6 +42,20 @@ interface TaskRepository {
     fun getOverdueTasksCount(nowMillis: Long = System.currentTimeMillis()): Flow<Int>
     fun getTotalTasksCount(): Flow<Int>
     fun getCompletedTasksInRange(startMillis: Long, endMillis: Long): Flow<List<TaskEntity>>
+    fun getCompletedTaskCountsPerDay(startMillis: Long, endMillis: Long): Flow<List<com.personal.daymark.data.local.dao.DailyCompletionCount>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
+    suspend fun getCompletedTaskCountsPerDaySync(startMillis: Long, endMillis: Long): List<com.personal.daymark.data.local.dao.DailyCompletionCount> =
+        emptyList()
+    fun getAllCompletedTaskCountsPerDay(): Flow<List<com.personal.daymark.data.local.dao.DailyCompletionCount>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
+    fun getTodayMedicines(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
+    suspend fun getTodayMedicinesSync(startOfDay: Long, endOfDay: Long): List<TaskEntity> =
+        emptyList()
+    fun getAllMedicines(): Flow<List<TaskEntity>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
+    suspend fun getMedicineAdherenceStats(startMillis: Long, endMillis: Long): Pair<Int, Int> =
+        0 to 0
 }
 
 class TaskRepositoryImpl(
@@ -107,7 +121,44 @@ class TaskRepositoryImpl(
 
     override suspend fun setTaskCompleted(id: Long, isCompleted: Boolean) = withContext(ioDispatcher) {
         val timestamp = if (isCompleted) System.currentTimeMillis() else null
-        taskDao.setTaskCompleted(id, isCompleted, timestamp)
+        val task = taskDao.getTaskById(id)
+        if (task != null && isCompleted && !task.isCompleted && task.isMedicine) {
+            handleMedicineCompletion(task, timestamp ?: System.currentTimeMillis())
+        } else {
+            taskDao.setTaskCompleted(id, isCompleted, timestamp)
+        }
+    }
+
+    private suspend fun handleMedicineCompletion(task: TaskEntity, timestamp: Long) {
+        val currentStock = task.stockCount
+        val newStock = if (currentStock != null) currentStock - 1 else null
+        val updatedTask = task.copy(
+            isCompleted = true,
+            completionTimestamp = timestamp,
+            stockCount = newStock,
+            updatedAt = System.currentTimeMillis()
+        )
+        taskDao.updateTask(updatedTask)
+
+        // Refill alert check:
+        // When stockCount reaches or falls below refillThreshold, automatically create a new task
+        // titled "Refill [medicine name]" with a due date 3 days from now and a high priority.
+        val threshold = task.refillThreshold
+        if (newStock != null && threshold != null && newStock <= threshold) {
+            val refillTitle = "Refill ${task.title}"
+            val existing = taskDao.findPendingTaskByTitle(refillTitle)
+            if (existing == null) {
+                val threeDaysMillis = System.currentTimeMillis() + (3 * 24 * 60 * 60 * 1000L)
+                val refillTask = TaskEntity(
+                    title = refillTitle,
+                    priority = 3, // High priority
+                    dueDate = threeDaysMillis,
+                    categoryId = task.categoryId,
+                    isMedicine = false
+                )
+                taskDao.insertTask(refillTask)
+            }
+        }
     }
 
     override suspend fun createSubtask(taskId: Long, title: String): Long = withContext(ioDispatcher) {
@@ -152,7 +203,14 @@ class TaskRepositoryImpl(
         val task = taskDao.getTaskById(taskId) ?: return@withContext null
         if (task.isCompleted) return@withContext null
 
-        taskDao.setTaskCompleted(taskId, true, System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        var currentStock = task.stockCount
+        if (task.isMedicine) {
+            handleMedicineCompletion(task, now)
+            currentStock = if (currentStock != null) currentStock - 1 else null
+        } else {
+            taskDao.setTaskCompleted(taskId, true, now)
+        }
 
         val ruleStr = task.recurrenceRule ?: return@withContext null
         val rule = com.personal.daymark.core.recurrence.RecurrenceRule.fromJson(ruleStr) ?: return@withContext null
@@ -183,6 +241,13 @@ class TaskRepositoryImpl(
             dueTime = task.dueTime,
             recurrenceRule = task.recurrenceRule,
             seriesId = seriesId,
+            durationMinutes = task.durationMinutes,
+            startTime = task.startTime,
+            isMedicine = task.isMedicine,
+            dosage = task.dosage,
+            medicineForm = task.medicineForm,
+            stockCount = currentStock,
+            refillThreshold = task.refillThreshold,
             isCompleted = false
         )
         val newId = taskDao.insertTask(nextTask)
@@ -269,4 +334,38 @@ class TaskRepositoryImpl(
     override fun getCompletedTasksInRange(startMillis: Long, endMillis: Long): Flow<List<TaskEntity>> {
         return taskDao.getCompletedTasksInRange(startMillis, endMillis).flowOn(ioDispatcher)
     }
+
+    override fun getCompletedTaskCountsPerDay(startMillis: Long, endMillis: Long): Flow<List<com.personal.daymark.data.local.dao.DailyCompletionCount>> {
+        return taskDao.getCompletedTaskCountsPerDay(startMillis, endMillis).flowOn(ioDispatcher)
+    }
+
+    override suspend fun getCompletedTaskCountsPerDaySync(startMillis: Long, endMillis: Long): List<com.personal.daymark.data.local.dao.DailyCompletionCount> =
+        withContext(ioDispatcher) {
+            taskDao.getCompletedTaskCountsPerDaySync(startMillis, endMillis)
+        }
+
+    override fun getAllCompletedTaskCountsPerDay(): Flow<List<com.personal.daymark.data.local.dao.DailyCompletionCount>> {
+        return taskDao.getAllCompletedTaskCountsPerDay().flowOn(ioDispatcher)
+    }
+
+    override fun getTodayMedicines(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>> {
+        return taskDao.getTodayMedicines(startOfDay, endOfDay).flowOn(ioDispatcher)
+    }
+
+    override fun getAllMedicines(): Flow<List<TaskEntity>> {
+        return taskDao.getAllMedicines().flowOn(ioDispatcher)
+    }
+
+    override suspend fun getTodayMedicinesSync(startOfDay: Long, endOfDay: Long): List<TaskEntity> =
+        withContext(ioDispatcher) {
+            taskDao.getTodayMedicinesSync(startOfDay, endOfDay)
+        }
+
+    override suspend fun getMedicineAdherenceStats(startMillis: Long, endMillis: Long): Pair<Int, Int> =
+        withContext(ioDispatcher) {
+            val completed = taskDao.getCompletedMedicinesInRange(startMillis, endMillis).size
+            val scheduled = taskDao.getScheduledMedicinesInRange(startMillis, endMillis).size
+            val total = maxOf(completed, scheduled)
+            completed to total
+        }
 }

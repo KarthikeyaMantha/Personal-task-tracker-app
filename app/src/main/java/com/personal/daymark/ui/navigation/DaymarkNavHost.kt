@@ -46,7 +46,9 @@ fun DaymarkNavHost(
             TasksScreen(targetTaskId = targetTaskId)
         }
         composable(route = DaymarkDestination.Calendar.route) {
-            CalendarScreen()
+            CalendarScreen(
+                onNavigateToManageTemplates = { navController.navigate(DaymarkDestination.ManageTemplates.route) }
+            )
         }
         composable(route = DaymarkDestination.Habits.route) {
             HabitsScreen()
@@ -75,7 +77,14 @@ fun DaymarkNavHost(
             )
         }
         composable(route = DaymarkDestination.Settings.route) {
-            SettingsScreen()
+            SettingsScreen(
+                onNavigateToManageTemplates = { navController.navigate(DaymarkDestination.ManageTemplates.route) }
+            )
+        }
+        composable(route = DaymarkDestination.ManageTemplates.route) {
+            com.personal.daymark.ui.screens.templates.ManageTemplatesScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

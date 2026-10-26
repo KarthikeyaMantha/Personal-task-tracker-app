@@ -39,7 +39,17 @@ class TaskReminderReceiver : BroadcastReceiver() {
                 // Only show notification if task exists in database and is not completed
                 if (task != null) {
                     if (!task.isCompleted) {
-                        showNotification(context, task.id, task.title, task.description)
+                        val notifTitle = if (task.isMedicine) "Medicine: ${task.title}" else task.title
+                        val notifText = if (task.isMedicine) {
+                            if (!task.dosage.isNullOrBlank()) {
+                                "Take ${task.dosage} of ${task.title}"
+                            } else {
+                                "Take scheduled dose of ${task.title}"
+                            }
+                        } else {
+                            task.description
+                        }
+                        showNotification(context, task.id, notifTitle, notifText)
                     }
                 } else if (app == null) {
                     // Fallback for tests or decoupled context

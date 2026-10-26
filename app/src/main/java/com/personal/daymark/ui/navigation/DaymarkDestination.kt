@@ -89,6 +89,13 @@ sealed class DaymarkDestination(
         selectedIcon = Icons.Filled.Timer
     )
 
+    data object ManageTemplates : DaymarkDestination(
+        route = "manage_templates",
+        title = "Day Templates",
+        unselectedIcon = Icons.Outlined.DateRange,
+        selectedIcon = Icons.Filled.DateRange
+    )
+
     companion object {
         val topLevelDestinations: List<DaymarkDestination> = listOf(
             Today,

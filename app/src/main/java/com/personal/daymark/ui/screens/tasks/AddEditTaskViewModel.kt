@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.personal.daymark.core.notifications.ReminderScheduler
+import com.personal.daymark.core.parser.ParsedTaskResult
+import com.personal.daymark.core.parser.TaskParser
 import com.personal.daymark.core.recurrence.RecurrenceRule
 import com.personal.daymark.data.local.entity.CategoryEntity
 import com.personal.daymark.data.local.entity.SubtaskEntity
@@ -49,7 +51,15 @@ data class AddEditTaskUiState(
     val isSaving: Boolean = false,
     val showRecurringEditDialog: Boolean = false,
     val subtasks: List<SubtaskItemState> = emptyList(),
-    val newSubtaskInput: String = ""
+    val newSubtaskInput: String = "",
+    val parsedResult: ParsedTaskResult? = null,
+    val durationMinutes: Int = 0,
+    val startTime: String? = null,
+    val isMedicine: Boolean = false,
+    val dosage: String = "",
+    val medicineForm: String = "",
+    val stockCount: Int? = null,
+    val refillThreshold: Int? = null
 )
 
 sealed interface AddEditTaskEvent {
@@ -75,7 +85,7 @@ class AddEditTaskViewModel(
     val categories: StateFlow<List<CategoryEntity>> = categoryRepository.getAllCategories()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
+            started = SharingStarted.Eagerly,
             initialValue = emptyList()
         )
 
@@ -117,7 +127,14 @@ class AddEditTaskViewModel(
                         dueTimeMinutes = task.dueTime,
                         recurrenceRule = parsedRule,
                         seriesId = task.seriesId,
-                        subtasks = subtasksState
+                        subtasks = subtasksState,
+                        durationMinutes = task.durationMinutes,
+                        startTime = task.startTime,
+                        isMedicine = task.isMedicine,
+                        dosage = task.dosage.orEmpty(),
+                        medicineForm = task.medicineForm.orEmpty(),
+                        stockCount = task.stockCount,
+                        refillThreshold = task.refillThreshold
                     )
                 }
             }
@@ -125,7 +142,14 @@ class AddEditTaskViewModel(
     }
 
     fun onTitleChanged(newTitle: String) {
-        _uiState.update { it.copy(title = newTitle, isTitleError = false) }
+        val parsed = TaskParser.parse(newTitle, categories.value)
+        _uiState.update {
+            it.copy(
+                title = newTitle,
+                isTitleError = false,
+                parsedResult = parsed
+            )
+        }
     }
 
     fun onDescriptionChanged(newDesc: String) {
@@ -145,7 +169,20 @@ class AddEditTaskViewModel(
     }
 
     fun onDueTimeSelected(newDueTimeMinutes: Int?) {
-        _uiState.update { it.copy(dueTimeMinutes = newDueTimeMinutes) }
+        val calculatedStartTime = newDueTimeMinutes?.let {
+            String.format(java.util.Locale.US, "%02d:%02d", it / 60, it % 60)
+        }
+        _uiState.update {
+            it.copy(
+                dueTimeMinutes = newDueTimeMinutes,
+                startTime = calculatedStartTime,
+                durationMinutes = if (it.durationMinutes == 0 && newDueTimeMinutes != null) 30 else it.durationMinutes
+            )
+        }
+    }
+
+    fun onDurationSelected(duration: Int) {
+        _uiState.update { it.copy(durationMinutes = duration) }
     }
 
     fun onRecurrenceRuleSelected(rule: RecurrenceRule?) {
@@ -208,17 +245,52 @@ class AddEditTaskViewModel(
         }
     }
 
+    // Medicine fields
+    fun onIsMedicineToggled(isMedicine: Boolean) {
+        _uiState.update { it.copy(isMedicine = isMedicine) }
+    }
+
+    fun onDosageChanged(dosage: String) {
+        _uiState.update { it.copy(dosage = dosage) }
+    }
+
+    fun onMedicineFormChanged(form: String) {
+        _uiState.update { it.copy(medicineForm = form) }
+    }
+
+    fun onStockCountChanged(count: Int?) {
+        _uiState.update { it.copy(stockCount = count) }
+    }
+
+    fun onRefillThresholdChanged(threshold: Int?) {
+        _uiState.update { it.copy(refillThreshold = threshold) }
+    }
+
     /**
      * Fast task creation/editing with recurring support and subtask checklist sync.
      */
     fun saveTask(editMode: RecurringEditMode = RecurringEditMode.DEFAULT) {
         val currentState = _uiState.value
-        val trimmedTitle = currentState.title.trim()
+        val rawTitle = currentState.title.trim()
 
-        if (trimmedTitle.isBlank()) {
+        if (rawTitle.isBlank()) {
             _uiState.update { it.copy(isTitleError = true) }
             return
         }
+
+        val parsed = currentState.parsedResult
+        val effectiveTitle = if (parsed != null && parsed.hasDetections) {
+            parsed.cleanTitle.ifBlank { rawTitle }
+        } else {
+            rawTitle
+        }
+
+        val effectiveCategoryId = currentState.categoryId
+            ?: parsed?.matchedCategory?.id
+            ?: categories.value.firstOrNull { it.name.equals(parsed?.detectedCategoryName, ignoreCase = true) }?.id
+        val effectivePriority = if (currentState.priority == 0) (parsed?.priority ?: 0) else currentState.priority
+        val effectiveDueDate = currentState.dueDate ?: parsed?.dueDate
+        val effectiveDueTime = currentState.dueTimeMinutes ?: parsed?.dueTimeMinutes
 
         val isExistingRecurring = currentState.taskId != null &&
                 currentState.taskId != 0L &&
@@ -234,17 +306,41 @@ class AddEditTaskViewModel(
         viewModelScope.launch {
             val ruleJson = currentState.recurrenceRule?.toJson()
 
+            val effectiveStartTime = currentState.startTime ?: effectiveDueTime?.let {
+                String.format(java.util.Locale.US, "%02d:%02d", it / 60, it % 60)
+            }
+            val effectiveDuration = if (currentState.durationMinutes > 0) {
+                currentState.durationMinutes
+            } else if (effectiveStartTime != null) {
+                30
+            } else {
+                0
+            }
+
+            val isMed = currentState.isMedicine
+            val dosageVal = currentState.dosage.trim().ifBlank { null }
+            val formVal = currentState.medicineForm.trim().ifBlank { null }
+            val stockVal = currentState.stockCount
+            val thresholdVal = currentState.refillThreshold
+
             val savedTaskId = if (editMode == RecurringEditMode.THIS_INSTANCE_ONLY) {
                 val taskEntity = TaskEntity(
                     id = currentState.taskId ?: 0L,
-                    title = trimmedTitle,
+                    title = effectiveTitle,
                     description = currentState.description.trim().ifBlank { null },
-                    categoryId = currentState.categoryId,
-                    priority = currentState.priority,
-                    dueDate = currentState.dueDate,
-                    dueTime = currentState.dueTimeMinutes,
+                    categoryId = effectiveCategoryId,
+                    priority = effectivePriority,
+                    dueDate = effectiveDueDate,
+                    dueTime = effectiveDueTime,
                     recurrenceRule = null,
-                    seriesId = null
+                    seriesId = null,
+                    durationMinutes = effectiveDuration,
+                    startTime = effectiveStartTime,
+                    isMedicine = isMed,
+                    dosage = dosageVal,
+                    medicineForm = formVal,
+                    stockCount = stockVal,
+                    refillThreshold = thresholdVal
                 )
                 taskRepository.updateTask(taskEntity)
                 taskEntity.id
@@ -257,14 +353,21 @@ class AddEditTaskViewModel(
 
                 val taskEntity = TaskEntity(
                     id = currentState.taskId ?: 0L,
-                    title = trimmedTitle,
+                    title = effectiveTitle,
                     description = currentState.description.trim().ifBlank { null },
-                    categoryId = currentState.categoryId,
-                    priority = currentState.priority,
-                    dueDate = currentState.dueDate,
-                    dueTime = currentState.dueTimeMinutes,
+                    categoryId = effectiveCategoryId,
+                    priority = effectivePriority,
+                    dueDate = effectiveDueDate,
+                    dueTime = effectiveDueTime,
                     recurrenceRule = ruleJson,
-                    seriesId = effectiveSeriesId
+                    seriesId = effectiveSeriesId,
+                    durationMinutes = effectiveDuration,
+                    startTime = effectiveStartTime,
+                    isMedicine = isMed,
+                    dosage = dosageVal,
+                    medicineForm = formVal,
+                    stockCount = stockVal,
+                    refillThreshold = thresholdVal
                 )
 
                 if (currentState.taskId == null || currentState.taskId == 0L) {
@@ -293,9 +396,11 @@ class AddEditTaskViewModel(
             // Reminder schedule/cancel
             val finalTask = TaskEntity(
                 id = savedTaskId,
-                title = trimmedTitle,
-                dueDate = currentState.dueDate,
-                dueTime = currentState.dueTimeMinutes
+                title = effectiveTitle,
+                dueDate = effectiveDueDate,
+                dueTime = effectiveDueTime,
+                isMedicine = isMed,
+                dosage = dosageVal
             )
             if (reminderScheduler != null) {
                 if (finalTask.dueDate != null) {

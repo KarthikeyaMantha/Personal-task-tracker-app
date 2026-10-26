@@ -83,6 +83,7 @@ import java.time.LocalDate
 
 @Composable
 fun SettingsScreen(
+    onNavigateToManageTemplates: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -452,6 +453,52 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontWeight = FontWeight.SemiBold
                                 )
+                            }
+                        }
+
+                        if (onNavigateToManageTemplates != null) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 12.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .sizeIn(minHeight = 48.dp)
+                                    .clickable { onNavigateToManageTemplates() },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Day Templates",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Configure recurring routines and time-block presets",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Manage",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                             }
                         }
                     }

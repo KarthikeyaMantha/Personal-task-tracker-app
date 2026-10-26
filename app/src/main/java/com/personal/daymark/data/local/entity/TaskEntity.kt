@@ -47,5 +47,55 @@ data class TaskEntity(
     @ColumnInfo(name = "recurrence_rule")
     val recurrenceRule: String? = null,
     @ColumnInfo(name = "series_id")
-    val seriesId: String? = null
-)
+    val seriesId: String? = null,
+    @ColumnInfo(name = "duration_minutes", defaultValue = "0")
+    val durationMinutes: Int = 0,
+    @ColumnInfo(name = "start_time")
+    val startTime: String? = null, // formatted as "HH:mm", e.g. "09:30"
+    @ColumnInfo(name = "is_medicine", defaultValue = "0")
+    val isMedicine: Boolean = false,
+    @ColumnInfo(name = "dosage")
+    val dosage: String? = null, // e.g. "500mg", "1 tablet"
+    @ColumnInfo(name = "medicine_form")
+    val medicineForm: String? = null, // e.g. "tablet", "capsule", "liquid"
+    @ColumnInfo(name = "stock_count")
+    val stockCount: Int? = null, // e.g. 24
+    @ColumnInfo(name = "refill_threshold")
+    val refillThreshold: Int? = null // e.g. 7
+) {
+    /**
+     * Returns effective start time string "HH:mm", falling back to dueTime if startTime is null.
+     */
+    fun getEffectiveStartTime(): String? {
+        if (!startTime.isNullOrBlank()) return startTime
+        if (dueTime != null) {
+            val h = dueTime / 60
+            val m = dueTime % 60
+            return String.format(java.util.Locale.US, "%02d:%02d", h, m)
+        }
+        return null
+    }
+
+    /**
+     * Returns start time in minutes from midnight (0..1439), or null if unscheduled.
+     */
+    fun getEffectiveStartMinutes(): Int? {
+        if (!startTime.isNullOrBlank()) {
+            val parts = startTime.split(":")
+            if (parts.size == 2) {
+                val h = parts[0].trim().toIntOrNull()
+                val m = parts[1].trim().toIntOrNull()
+                if (h != null && m != null) {
+                    return h * 60 + m
+                }
+            }
+        }
+        return dueTime
+    }
+
+    /**
+     * True if the task has both a valid start time and positive duration for timeline display.
+     */
+    val isTimelineScheduled: Boolean
+        get() = getEffectiveStartMinutes() != null && durationMinutes > 0
+}

@@ -32,8 +32,9 @@ class AddEditTaskViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private class FakeCategoryRepository : CategoryRepository {
-        override fun getAllCategories(): Flow<List<CategoryEntity>> = flowOf(emptyList())
-        override fun getCategoryById(id: Long): Flow<CategoryEntity?> = flowOf(null)
+        val categories = listOf(CategoryEntity(id = 10L, name = "Personal", colorHex = "#4CAF50"))
+        override fun getAllCategories(): Flow<List<CategoryEntity>> = flowOf(categories)
+        override fun getCategoryById(id: Long): Flow<CategoryEntity?> = flowOf(categories.find { it.id == id })
         override suspend fun createCategory(name: String, colorHex: String, iconName: String?, sortOrder: Int): Long = 1L
         override suspend fun updateCategory(category: CategoryEntity) {}
         override suspend fun deleteCategory(category: CategoryEntity) {}
@@ -193,5 +194,30 @@ class AddEditTaskViewModelTest {
         advanceUntilIdle()
 
         assertEquals("Task with Checklist", fakeTaskRepo.lastInsertedTask?.title)
+    }
+
+    @Test
+    fun naturalLanguageInput_stripsTagsAndAppliesMetadata() = runTest {
+        val viewModel = AddEditTaskViewModel(null, fakeTaskRepo, fakeCategoryRepo)
+        advanceUntilIdle()
+
+        viewModel.onTitleChanged("Buy milk #Personal !high tomorrow at 6pm")
+        advanceUntilIdle()
+
+        val parsed = viewModel.uiState.value.parsedResult
+        org.junit.Assert.assertNotNull(parsed)
+        assertTrue(parsed!!.hasDetections)
+        assertEquals("Buy milk", parsed.cleanTitle)
+
+        viewModel.saveTask()
+        advanceUntilIdle()
+
+        val saved = fakeTaskRepo.lastInsertedTask
+        org.junit.Assert.assertNotNull(saved)
+        assertEquals("Buy milk", saved?.title)
+        assertEquals(10L, saved?.categoryId)
+        assertEquals(3, saved?.priority)
+        assertEquals(18 * 60, saved?.dueTime)
+        org.junit.Assert.assertNotNull(saved?.dueDate)
     }
 }

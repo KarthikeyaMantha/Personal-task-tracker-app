@@ -22,7 +22,29 @@ interface HabitRepository {
         targetWeekdays: Int = 127,
         colorHex: String = "#1B4332",
         categoryId: Long? = null
-    ): Long
+    ): Long = 0L
+
+    suspend fun createHabit(
+        name: String,
+        note: String? = null,
+        frequency: String = "DAILY",
+        targetWeekdays: Int = 127,
+        colorHex: String = "#1B4332",
+        categoryId: Long? = null,
+        healthMetricType: String? = null,
+        targetValue: Int? = null,
+        unit: String? = null
+    ): Long = createHabit(name, note, frequency, targetWeekdays, colorHex, categoryId)
+    suspend fun logHealthMetric(
+        habitId: Long,
+        value: Float,
+        note: String? = null,
+        localDate: java.time.LocalDate = java.time.LocalDate.now()
+    ): HabitLogEntity? = null
+    suspend fun incrementWater(
+        habitId: Long,
+        localDate: java.time.LocalDate = java.time.LocalDate.now()
+    ): Float = 0f
     suspend fun updateHabit(habit: HabitEntity)
     suspend fun deleteHabit(habit: HabitEntity)
     suspend fun deleteHabitById(id: Long)
@@ -62,6 +84,18 @@ class HabitRepositoryImpl(
         targetWeekdays: Int,
         colorHex: String,
         categoryId: Long?
+    ): Long = createHabit(name, note, frequency, targetWeekdays, colorHex, categoryId, null, null, null)
+
+    override suspend fun createHabit(
+        name: String,
+        note: String?,
+        frequency: String,
+        targetWeekdays: Int,
+        colorHex: String,
+        categoryId: Long?,
+        healthMetricType: String?,
+        targetValue: Int?,
+        unit: String?
     ): Long = withContext(ioDispatcher) {
         val habit = HabitEntity(
             name = name,
@@ -69,9 +103,66 @@ class HabitRepositoryImpl(
             frequency = frequency,
             targetWeekdays = targetWeekdays,
             colorHex = colorHex,
-            categoryId = categoryId
+            categoryId = categoryId,
+            healthMetricType = healthMetricType,
+            targetValue = targetValue,
+            unit = unit
         )
         habitDao.insertHabit(habit)
+    }
+
+    override suspend fun logHealthMetric(
+        habitId: Long,
+        value: Float,
+        note: String?,
+        localDate: java.time.LocalDate
+    ): HabitLogEntity? = withContext(ioDispatcher) {
+        val dateStr = localDate.toString()
+        val epochDay = localDate.toEpochDay()
+        val existing = habitDao.getLogForDateStringSync(habitId, dateStr)
+        val habit = habitDao.getAllHabitsList().find { it.id == habitId }
+        val target = habit?.targetValue ?: 1
+        val isCompleted = when (habit?.healthMetricType) {
+            "mood" -> true
+            else -> value >= target
+        }
+        val log = HabitLogEntity(
+            id = existing?.id ?: 0L,
+            habitId = habitId,
+            date = epochDay,
+            dateString = dateStr,
+            isCompleted = isCompleted,
+            value = value,
+            note = note ?: existing?.note,
+            loggedAt = System.currentTimeMillis()
+        )
+        val id = habitDao.insertHabitLog(log)
+        log.copy(id = id)
+    }
+
+    override suspend fun incrementWater(
+        habitId: Long,
+        localDate: java.time.LocalDate
+    ): Float = withContext(ioDispatcher) {
+        val dateStr = localDate.toString()
+        val epochDay = localDate.toEpochDay()
+        val existing = habitDao.getLogForDateStringSync(habitId, dateStr)
+        val currentCount = existing?.value ?: 0f
+        val newCount = currentCount + 1f
+        val habit = habitDao.getAllHabitsList().find { it.id == habitId }
+        val target = habit?.targetValue ?: 8
+        val log = HabitLogEntity(
+            id = existing?.id ?: 0L,
+            habitId = habitId,
+            date = epochDay,
+            dateString = dateStr,
+            isCompleted = newCount >= target,
+            value = newCount,
+            note = existing?.note,
+            loggedAt = System.currentTimeMillis()
+        )
+        habitDao.insertHabitLog(log)
+        newCount
     }
 
     override suspend fun updateHabit(habit: HabitEntity) = withContext(ioDispatcher) {

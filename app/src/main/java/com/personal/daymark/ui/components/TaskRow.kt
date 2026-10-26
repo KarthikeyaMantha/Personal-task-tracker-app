@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,6 +42,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.personal.daymark.ui.theme.DaymarkTheme
+import androidx.compose.material.icons.outlined.Snooze
+import androidx.compose.material3.IconButton
 import com.personal.daymark.ui.theme.PriorityHigh
 import com.personal.daymark.ui.theme.PriorityLow
 import com.personal.daymark.ui.theme.PriorityMedium
@@ -57,7 +60,8 @@ fun getPriorityColor(priority: Int): Color? {
 }
 
 /**
- * Reusable TaskRow component with completion toggle, title, due date, category, and priority indicator.
+ * Reusable TaskRow component with completion toggle, title, due date, category, priority indicator,
+ * and smart snoozing/deferring (via long-press or snooze button).
  */
 @Composable
 fun TaskRow(
@@ -72,6 +76,10 @@ fun TaskRow(
     subtasksCompleted: Int = 0,
     subtasksTotal: Int = 0,
     priorityColor: Color? = null,
+    isMedicine: Boolean = false,
+    dosage: String? = null,
+    stockCount: Int? = null,
+    onSnooze: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     val checkBackground by animateColorAsState(
@@ -86,7 +94,8 @@ fun TaskRow(
 
     DaymarkCard(
         modifier = modifier,
-        onClick = onClick
+        onClick = onClick,
+        onLongClick = onSnooze
     ) {
         Row(
             modifier = Modifier
@@ -129,25 +138,53 @@ fun TaskRow(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (isCompleted) {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                    textDecoration = if (isCompleted) TextDecoration.LineThrough else TextDecoration.None,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (isMedicine) {
+                        Icon(
+                            imageVector = Icons.Filled.Medication,
+                            contentDescription = "Medicine",
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isCompleted) {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        textDecoration = if (isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
-                if (categoryName != null || dueDateText != null || recurrenceText != null || subtasksTotal > 0) {
+                if (isMedicine || categoryName != null || dueDateText != null || recurrenceText != null || subtasksTotal > 0) {
                     Spacer(modifier = Modifier.size(6.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        if (isMedicine && !dosage.isNullOrBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f))
+                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "$dosage${if (stockCount != null) " • $stockCount left" else ""}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+
                         if (categoryName != null) {
                             val badgeColor = categoryColor ?: MaterialTheme.colorScheme.secondary
                             Box(
@@ -220,9 +257,25 @@ fun TaskRow(
                 }
             }
 
+            // Defer / Snooze quick action button
+            if (onSnooze != null && !isCompleted) {
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = onSnooze,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Snooze,
+                        contentDescription = "Snooze task",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
             // Priority Indicator Dot
             if (priorityColor != null) {
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
                         .size(8.dp)
@@ -253,6 +306,10 @@ fun SwipeableTaskRow(
     subtasksCompleted: Int = 0,
     subtasksTotal: Int = 0,
     priorityColor: Color? = null,
+    isMedicine: Boolean = false,
+    dosage: String? = null,
+    stockCount: Int? = null,
+    onSnooze: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
@@ -347,6 +404,10 @@ fun SwipeableTaskRow(
             subtasksCompleted = subtasksCompleted,
             subtasksTotal = subtasksTotal,
             priorityColor = priorityColor,
+            isMedicine = isMedicine,
+            dosage = dosage,
+            stockCount = stockCount,
+            onSnooze = onSnooze,
             onClick = onClick
         )
     }

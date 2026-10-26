@@ -17,22 +17,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,6 +57,7 @@ import com.personal.daymark.core.habits.HabitDayHistory
 import com.personal.daymark.core.habits.HabitDayStatus
 import com.personal.daymark.data.local.entity.parsedColor
 import com.personal.daymark.ui.components.DaymarkCard
+import com.personal.daymark.ui.components.DaymarkTextField
 import java.time.LocalDate
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -58,7 +68,9 @@ fun HabitCard(
     onToggleDate: (LocalDate) -> Unit,
     onEditHabit: () -> Unit,
     onDeleteHabit: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onIncrementWater: (() -> Unit)? = null,
+    onLogHealthMetric: ((Float, String?) -> Unit)? = null
 ) {
     val habit = habitItem.habit
     val habitColor = habit.parsedColor()
@@ -114,13 +126,32 @@ fun HabitCard(
 
                 // Title and Note
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = habit.name,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (habit.healthMetricType != null) {
+                            val healthIcon = when (habit.healthMetricType) {
+                                "water" -> Icons.Default.WaterDrop
+                                "sleep" -> Icons.Default.Bedtime
+                                "mood" -> Icons.Default.Favorite
+                                else -> Icons.Default.Spa
+                            }
+                            Icon(
+                                imageVector = healthIcon,
+                                contentDescription = "Health Habit",
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Text(
+                            text = habit.name,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
                     if (!habit.note.isNullOrBlank()) {
                         Text(
@@ -203,6 +234,16 @@ fun HabitCard(
                         )
                     }
                 }
+            }
+
+            // Health Metric Check-In UI
+            if (habit.healthMetricType != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HealthMetricControls(
+                    habitItem = habitItem,
+                    onIncrementWater = onIncrementWater,
+                    onLogHealthMetric = onLogHealthMetric
+                )
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -334,3 +375,191 @@ private fun HabitDayCell(
         )
     }
 }
+
+@Composable
+private fun HealthMetricControls(
+    habitItem: HabitItemUiState,
+    onIncrementWater: (() -> Unit)?,
+    onLogHealthMetric: ((Float, String?) -> Unit)?
+) {
+    val habit = habitItem.habit
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            when (habit.healthMetricType?.lowercase()) {
+                "water" -> {
+                    val currentGlasses = (habitItem.todayValue ?: 0f).toInt()
+                    val targetGlasses = habit.targetValue ?: 8
+                    val progress = if (targetGlasses > 0) (currentGlasses.toFloat() / targetGlasses).coerceIn(0f, 1f) else 0f
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Water Intake Today",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$currentGlasses / $targetGlasses ${habit.unit ?: "glasses"}",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Button(
+                            onClick = { onIncrementWater?.invoke() },
+                            shape = RoundedCornerShape(20.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.WaterDrop,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            val unitSingular = habit.unit?.removeSuffix("es")?.removeSuffix("s") ?: "glass"
+                            Text("+1 $unitSingular", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                }
+
+                "sleep" -> {
+                    var sleepValue by remember(habitItem.todayValue) {
+                        mutableFloatStateOf(habitItem.todayValue ?: 7.5f)
+                    }
+                    val targetHours = habit.targetValue ?: 8
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Sleep Duration",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${String.format(java.util.Locale.US, "%.1f", sleepValue)} / $targetHours ${habit.unit ?: "hours"}",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Slider(
+                        value = sleepValue,
+                        onValueChange = { sleepValue = it },
+                        onValueChangeFinished = {
+                            onLogHealthMetric?.invoke(sleepValue, null)
+                        },
+                        valueRange = 0f..14f,
+                        steps = 27
+                    )
+                }
+
+                "mood" -> {
+                    val currentMood = habitItem.todayValue?.toInt()
+                    val emojis = listOf(
+                        1 to "😞",
+                        2 to "😐",
+                        3 to "🙂",
+                        4 to "😊",
+                        5 to "😄"
+                    )
+                    var noteText by remember(habitItem.todayNote) {
+                        mutableStateOf(habitItem.todayNote ?: "")
+                    }
+                    var showNoteField by remember { mutableStateOf(!habitItem.todayNote.isNullOrBlank()) }
+
+                    Text(
+                        text = "Daily Mood Check-in",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        emojis.forEach { (rating, emoji) ->
+                            val isSelected = currentMood == rating
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                    .border(
+                                        width = if (isSelected) 2.dp else 0.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                        shape = CircleShape
+                                    )
+                                    .clickable {
+                                        onLogHealthMetric?.invoke(rating.toFloat(), noteText.ifBlank { null })
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = emoji,
+                                    fontSize = 22.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (!showNoteField) {
+                        Text(
+                            text = if (habitItem.todayNote.isNullOrBlank()) "+ Add note" else habitItem.todayNote ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clickable { showNoteField = true }
+                                .padding(vertical = 4.dp)
+                        )
+                    } else {
+                        DaymarkTextField(
+                            value = noteText,
+                            onValueChange = {
+                                noteText = it
+                                if (currentMood != null) {
+                                    onLogHealthMetric?.invoke(currentMood.toFloat(), it.ifBlank { null })
+                                }
+                            },
+                            placeholder = "Optional note (e.g. feeling calm)...",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

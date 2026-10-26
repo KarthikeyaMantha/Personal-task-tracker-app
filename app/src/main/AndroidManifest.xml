@@ -76,6 +76,24 @@
                 android:value="Focus and Pomodoro deep work countdown timer with persistent notification and controls" />
         </service>
 
+        <!-- Phase 22: Health & Medicine Home Screen Widget (Jetpack Glance) -->
+        <receiver
+            android:name=".widget.HealthWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/health_widget_info" />
+        </receiver>
+
+        <!-- Phase 22: Quick Mood Log Transparent Overlay -->
+        <activity
+            android:name=".widget.MoodLogOverlayActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Daymark.TransparentOverlay" />
+
     </application>
 
 </manifest>

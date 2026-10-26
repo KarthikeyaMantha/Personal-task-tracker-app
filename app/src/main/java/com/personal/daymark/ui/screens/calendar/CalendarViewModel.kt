@@ -7,8 +7,13 @@ import androidx.lifecycle.viewModelScope
 import com.personal.daymark.core.notifications.ReminderScheduler
 import com.personal.daymark.data.local.entity.TaskWithSubtasksAndCategory
 import com.personal.daymark.data.local.entity.parsedColor
+import com.personal.daymark.data.local.entity.TemplateWithItems
+import com.personal.daymark.data.local.entity.TimeBlockEntity
+import com.personal.daymark.data.repository.ApplyTemplateResult
 import com.personal.daymark.data.repository.CategoryRepository
 import com.personal.daymark.data.repository.TaskRepository
+import com.personal.daymark.data.repository.TemplateRepository
+import com.personal.daymark.data.repository.TimeBlockRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +43,8 @@ data class CalendarDay(
     val isToday: Boolean,
     val isSelected: Boolean,
     val taskDots: List<Color> = emptyList(),
-    val taskCount: Int = 0
+    val taskCount: Int = 0,
+    val completedCount: Int = 0
 )
 
 data class CalendarUiState(
@@ -46,6 +52,8 @@ data class CalendarUiState(
     val selectedDate: LocalDate = LocalDate.now(),
     val displayedMonth: YearMonth = YearMonth.now(),
     val tasksForSelectedDate: List<TaskWithSubtasksAndCategory> = emptyList(),
+    val busyBlocksForSelectedDate: List<TimeBlockEntity> = emptyList(),
+    val templates: List<TemplateWithItems> = emptyList(),
     val overdueTasks: List<TaskWithSubtasksAndCategory> = emptyList(),
     val monthGridDays: List<CalendarDay> = emptyList(),
     val weekDays: List<CalendarDay> = emptyList(),
@@ -65,7 +73,9 @@ private data class CalendarControls(
 class CalendarViewModel(
     private val taskRepository: TaskRepository,
     private val reminderScheduler: ReminderScheduler? = null,
-    private val settingsRepository: SettingsRepository? = null
+    private val settingsRepository: SettingsRepository? = null,
+    private val timeBlockRepository: TimeBlockRepository? = null,
+    private val templateRepository: TemplateRepository? = null
 ) : ViewModel() {
 
     private val _viewMode = MutableStateFlow(CalendarViewMode.MONTHLY)
@@ -75,6 +85,10 @@ class CalendarViewModel(
 
     private val weekStartFlow = settingsRepository?.userPreferencesFlow?.map { it.weekStartDay }
         ?: flowOf(UserPreferences.WEEK_START_MONDAY)
+
+    private val allTimeBlocksFlow = timeBlockRepository?.getAllTimeBlocks() ?: flowOf(emptyList())
+    private val allTemplatesFlow = templateRepository?.getAllTemplatesWithItems() ?: flowOf(emptyList())
+    private val completedCountsFlow = taskRepository.getAllCompletedTaskCountsPerDay()
 
     private val calendarControlsFlow = combine(
         _viewMode,
@@ -88,8 +102,11 @@ class CalendarViewModel(
 
     val uiState: StateFlow<CalendarUiState> = combine(
         taskRepository.getAllTasksWithDetails(),
+        allTimeBlocksFlow,
+        allTemplatesFlow,
+        completedCountsFlow,
         calendarControlsFlow
-    ) { allTasks, controls ->
+    ) { allTasks, allTimeBlocks, templates, completionCounts, controls ->
         val viewMode = controls.viewMode
         val selectedDate = controls.selectedDate
         val displayedMonth = controls.displayedMonth
@@ -98,6 +115,11 @@ class CalendarViewModel(
 
         val today = LocalDate.now()
         val zoneId = ZoneId.systemDefault()
+        val selectedDateStr = selectedDate.toString()
+
+        // Filter busy blocks for selected date
+        val busyBlocksForDate = allTimeBlocks.filter { it.date == selectedDateStr }
+        val completionMap = completionCounts.associate { it.dayDate to it.count }
 
         // Group tasks by LocalDate
         val tasksByDate = mutableMapOf<LocalDate, MutableList<TaskWithSubtasksAndCategory>>()
@@ -122,11 +144,11 @@ class CalendarViewModel(
                 .thenByDescending { it.task.priority }
         ) ?: emptyList()
 
-        // Build month grid days
-        val monthGrid = buildMonthGrid(displayedMonth, selectedDate, today, tasksByDate, weekStartDay)
+        // Build month grid days with completion heatmap counts
+        val monthGrid = buildMonthGrid(displayedMonth, selectedDate, today, tasksByDate, completionMap, weekStartDay)
 
         // Build 7-day week strip for selectedDate's current week
-        val weekStrip = buildWeekStrip(selectedDate, today, tasksByDate, weekStartDay)
+        val weekStrip = buildWeekStrip(selectedDate, today, tasksByDate, completionMap, weekStartDay)
 
         val quickAddMillis = selectedDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
 
@@ -135,6 +157,8 @@ class CalendarViewModel(
             selectedDate = selectedDate,
             displayedMonth = displayedMonth,
             tasksForSelectedDate = selectedDateTasks,
+            busyBlocksForSelectedDate = busyBlocksForDate,
+            templates = templates,
             overdueTasks = overdue.sortedBy { it.task.dueDate },
             monthGridDays = monthGrid,
             weekDays = weekStrip,
@@ -223,15 +247,78 @@ class CalendarViewModel(
         }
     }
 
+    fun updateTaskTimeline(taskId: Long, startTime: String, durationMinutes: Int) {
+        viewModelScope.launch {
+            val task = taskRepository.getTaskById(taskId) ?: return@launch
+            val parts = startTime.split(":")
+            val dueMinutes = if (parts.size == 2) {
+                val h = parts[0].trim().toIntOrNull() ?: 0
+                val m = parts[1].trim().toIntOrNull() ?: 0
+                h * 60 + m
+            } else task.dueTime
+
+            val updatedTask = task.copy(
+                startTime = startTime,
+                durationMinutes = durationMinutes,
+                dueTime = dueMinutes,
+                updatedAt = System.currentTimeMillis()
+            )
+            taskRepository.updateTask(updatedTask)
+            if (updatedTask.dueDate != null) {
+                reminderScheduler?.scheduleReminder(updatedTask)
+            }
+        }
+    }
+
+    fun addBusyBlock(title: String, startTime: String, durationMinutes: Int, date: LocalDate = _selectedDate.value) {
+        viewModelScope.launch {
+            val entity = TimeBlockEntity(
+                title = title,
+                startTime = startTime,
+                durationMinutes = durationMinutes,
+                colorHex = null,
+                date = date.toString()
+            )
+            timeBlockRepository?.createTimeBlock(entity)
+        }
+    }
+
+    fun deleteBusyBlock(id: Long) {
+        viewModelScope.launch {
+            timeBlockRepository?.deleteTimeBlock(id)
+        }
+    }
+
+    fun applyTemplate(
+        templateId: Long,
+        date: LocalDate = _selectedDate.value,
+        onResult: ((ApplyTemplateResult) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val result = templateRepository?.applyTemplateToDate(templateId, date)
+            if (result != null) {
+                onResult?.invoke(result)
+            }
+        }
+    }
+
     companion object {
         fun provideFactory(
             taskRepository: TaskRepository,
+            timeBlockRepository: TimeBlockRepository? = null,
+            templateRepository: TemplateRepository? = null,
             reminderScheduler: ReminderScheduler? = null,
             settingsRepository: SettingsRepository? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return CalendarViewModel(taskRepository, reminderScheduler, settingsRepository) as T
+                return CalendarViewModel(
+                    taskRepository = taskRepository,
+                    reminderScheduler = reminderScheduler,
+                    settingsRepository = settingsRepository,
+                    timeBlockRepository = timeBlockRepository,
+                    templateRepository = templateRepository
+                ) as T
             }
         }
 
@@ -240,6 +327,7 @@ class CalendarViewModel(
             selectedDate: LocalDate,
             today: LocalDate,
             tasksByDate: Map<LocalDate, List<TaskWithSubtasksAndCategory>>,
+            completionMap: Map<String, Int>,
             weekStartDay: Int
         ): List<CalendarDay> {
             val days = mutableListOf<CalendarDay>()
@@ -257,13 +345,13 @@ class CalendarViewModel(
             val prevMonthLength = prevMonth.lengthOfMonth()
             for (i in leadDays downTo 1) {
                 val date = prevMonth.atDay(prevMonthLength - i + 1)
-                days.add(createCalendarDay(date, false, selectedDate, today, tasksByDate))
+                days.add(createCalendarDay(date, false, selectedDate, today, tasksByDate, completionMap))
             }
 
             // Days of current month
             for (day in 1..displayedMonth.lengthOfMonth()) {
                 val date = displayedMonth.atDay(day)
-                days.add(createCalendarDay(date, true, selectedDate, today, tasksByDate))
+                days.add(createCalendarDay(date, true, selectedDate, today, tasksByDate, completionMap))
             }
 
             // Trailing days from next month to complete 5 or 6 weeks (multiples of 7)
@@ -271,7 +359,7 @@ class CalendarViewModel(
             var trailingDay = 1
             while (days.size % 7 != 0 || days.size < 35) {
                 val date = nextMonth.atDay(trailingDay++)
-                days.add(createCalendarDay(date, false, selectedDate, today, tasksByDate))
+                days.add(createCalendarDay(date, false, selectedDate, today, tasksByDate, completionMap))
             }
 
             return days
@@ -281,6 +369,7 @@ class CalendarViewModel(
             selectedDate: LocalDate,
             today: LocalDate,
             tasksByDate: Map<LocalDate, List<TaskWithSubtasksAndCategory>>,
+            completionMap: Map<String, Int>,
             weekStartDay: Int
         ): List<CalendarDay> {
             val startDayOffset = if (weekStartDay == UserPreferences.WEEK_START_SUNDAY) {
@@ -291,7 +380,7 @@ class CalendarViewModel(
             val startOfWeek = selectedDate.minusDays(startDayOffset.toLong())
             return (0..6).map { i ->
                 val date = startOfWeek.plusDays(i.toLong())
-                createCalendarDay(date, true, selectedDate, today, tasksByDate)
+                createCalendarDay(date, true, selectedDate, today, tasksByDate, completionMap)
             }
         }
 
@@ -300,7 +389,8 @@ class CalendarViewModel(
             isCurrentMonth: Boolean,
             selectedDate: LocalDate,
             today: LocalDate,
-            tasksByDate: Map<LocalDate, List<TaskWithSubtasksAndCategory>>
+            tasksByDate: Map<LocalDate, List<TaskWithSubtasksAndCategory>>,
+            completionMap: Map<String, Int>
         ): CalendarDay {
             val tasksOnDay = tasksByDate[date].orEmpty()
             val dots = tasksOnDay
@@ -311,13 +401,18 @@ class CalendarViewModel(
                     if (tasksOnDay.isNotEmpty()) listOf(Color(0xFF40916C)) else emptyList()
                 }
 
+            val fromDb = completionMap[date.toString()] ?: 0
+            val fromTasks = tasksOnDay.count { it.task.isCompleted }
+            val effectiveCompleted = maxOf(fromDb, fromTasks)
+
             return CalendarDay(
                 date = date,
                 isCurrentMonth = isCurrentMonth,
                 isToday = date == today,
                 isSelected = date == selectedDate,
                 taskDots = dots,
-                taskCount = tasksOnDay.size
+                taskCount = tasksOnDay.size,
+                completedCount = effectiveCompleted
             )
         }
     }
