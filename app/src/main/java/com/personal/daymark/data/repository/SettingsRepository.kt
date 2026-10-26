@@ -32,6 +32,7 @@ interface SettingsRepository {
     suspend fun updateSessionsUntilLongBreak(count: Int)
     suspend fun updateHapticFeedbackEnabled(enabled: Boolean)
     suspend fun updateDailySummaryEnabled(enabled: Boolean)
+    suspend fun updateEndOfDayTime(hour: Int, minute: Int) {}
 }
 
 class SettingsRepositoryImpl(
@@ -49,6 +50,8 @@ class SettingsRepositoryImpl(
         val SESSIONS_UNTIL_LONG_BREAK = intPreferencesKey("sessions_until_long_break")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val DAILY_SUMMARY = booleanPreferencesKey("daily_summary")
+        val END_OF_DAY_HOUR = intPreferencesKey("end_of_day_hour")
+        val END_OF_DAY_MINUTE = intPreferencesKey("end_of_day_minute")
     }
 
     override val userPreferencesFlow: Flow<UserPreferences> = dataStore.data
@@ -69,7 +72,9 @@ class SettingsRepositoryImpl(
                 longBreakDurationMinutes = preferences[PreferencesKeys.LONG_BREAK_DURATION] ?: 15,
                 sessionsUntilLongBreak = preferences[PreferencesKeys.SESSIONS_UNTIL_LONG_BREAK] ?: 4,
                 hapticFeedbackEnabled = preferences[PreferencesKeys.HAPTIC_FEEDBACK] ?: true,
-                dailySummaryEnabled = preferences[PreferencesKeys.DAILY_SUMMARY] ?: true
+                dailySummaryEnabled = preferences[PreferencesKeys.DAILY_SUMMARY] ?: true,
+                endOfDayHour = preferences[PreferencesKeys.END_OF_DAY_HOUR] ?: 17,
+                endOfDayMinute = preferences[PreferencesKeys.END_OF_DAY_MINUTE] ?: 0
             )
         }
         .flowOn(ioDispatcher)
@@ -142,6 +147,15 @@ class SettingsRepositoryImpl(
         withContext(ioDispatcher) {
             dataStore.edit { preferences ->
                 preferences[PreferencesKeys.DAILY_SUMMARY] = enabled
+            }
+        }
+    }
+
+    override suspend fun updateEndOfDayTime(hour: Int, minute: Int) {
+        withContext(ioDispatcher) {
+            dataStore.edit { preferences ->
+                preferences[PreferencesKeys.END_OF_DAY_HOUR] = hour
+                preferences[PreferencesKeys.END_OF_DAY_MINUTE] = minute
             }
         }
     }

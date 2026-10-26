@@ -335,6 +335,20 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f)
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // End-of-Day Review Time
+                        DurationPickerRow(
+                            title = "End-of-Day Review Time",
+                            description = "Time to trigger daily shutdown ritual (default 5:00 PM)",
+                            selectedValue = userPrefs.endOfDayHour,
+                            options = listOf(16, 17, 18, 19, 20),
+                            unit = "pm",
+                            onSelect = { settingsViewModel.setEndOfDayTime(it, 0) }
+                        )
                     }
                 }
 
@@ -867,7 +881,11 @@ private fun DurationPickerRow(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (unit == "min") "${opt}m" else "$opt",
+                        text = when (unit) {
+                            "min" -> "${opt}m"
+                            "pm" -> "${if (opt > 12) opt - 12 else opt} PM"
+                            else -> "$opt"
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer

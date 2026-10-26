@@ -59,6 +59,7 @@ import com.personal.daymark.ui.components.DaymarkTopAppBar
 @Composable
 fun FocusScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToFocusMode: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: FocusViewModel = viewModel(
         factory = FocusViewModel.provideFactory(
@@ -283,7 +284,12 @@ fun FocusScreen(
             when (timerData.state) {
                 FocusTimerState.IDLE, FocusTimerState.COMPLETED -> {
                     Button(
-                        onClick = { viewModel.startTimer() },
+                        onClick = {
+                            viewModel.startTimer()
+                            if (timerData.linkedTaskId != null && timerData.sessionType.isWork) {
+                                onNavigateToFocusMode()
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -329,6 +335,21 @@ fun FocusScreen(
                             Text("Pause", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                         }
                     }
+
+                    if (timerData.linkedTaskId != null) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        OutlinedButton(
+                            onClick = onNavigateToFocusMode,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Enter Fullscreen Focus Mode",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                        }
+                    }
                 }
                 FocusTimerState.PAUSED -> {
                     Row(
@@ -358,6 +379,21 @@ fun FocusScreen(
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Resume", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                        }
+                    }
+
+                    if (timerData.linkedTaskId != null) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        OutlinedButton(
+                            onClick = onNavigateToFocusMode,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Enter Fullscreen Focus Mode",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                            )
                         }
                     }
                 }

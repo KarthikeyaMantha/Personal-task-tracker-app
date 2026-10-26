@@ -38,6 +38,7 @@ fun DaymarkNavHost(
         composable(route = DaymarkDestination.Today.route) {
             TodayScreen(
                 onNavigateToFocus = { navController.navigate(DaymarkDestination.Focus.route) },
+                onNavigateToFocusMode = { navController.navigate(DaymarkDestination.FocusMode.route) },
                 onNavigateToInsights = { navController.navigate(DaymarkDestination.Insights.route) }
             )
         }
@@ -52,6 +53,12 @@ fun DaymarkNavHost(
         }
         composable(route = DaymarkDestination.Focus.route) {
             com.personal.daymark.ui.screens.focus.FocusScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToFocusMode = { navController.navigate(DaymarkDestination.FocusMode.route) }
+            )
+        }
+        composable(route = DaymarkDestination.FocusMode.route) {
+            com.personal.daymark.ui.screens.focus.FocusModeScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

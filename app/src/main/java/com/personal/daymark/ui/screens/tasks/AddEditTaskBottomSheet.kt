@@ -58,11 +58,14 @@ import com.personal.daymark.ui.components.DaymarkTextField
 import com.personal.daymark.ui.components.getPriorityColor
 import java.util.Calendar
 
+import androidx.compose.material.icons.outlined.Timer
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditTaskBottomSheet(
     viewModel: AddEditTaskViewModel,
     onDismissRequest: () -> Unit,
+    onStartFocus: ((Long, String) -> Unit)? = null,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -792,6 +795,29 @@ fun AddEditTaskBottomSheet(
                 onClick = { viewModel.saveTask() },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            if (uiState.taskId != null && uiState.taskId != 0L && onStartFocus != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                androidx.compose.material3.OutlinedButton(
+                    onClick = {
+                        onStartFocus(uiState.taskId!!, uiState.title)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Timer,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Start Focus on this Task",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
         }

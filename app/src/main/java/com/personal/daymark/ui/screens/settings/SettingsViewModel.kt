@@ -75,6 +75,12 @@ class SettingsViewModel(
         }
     }
 
+    fun setEndOfDayTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            settingsRepository.updateEndOfDayTime(hour, minute)
+        }
+    }
+
     companion object {
         fun provideFactory(settingsRepository: SettingsRepository): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {

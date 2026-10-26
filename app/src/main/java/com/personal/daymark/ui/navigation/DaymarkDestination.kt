@@ -82,6 +82,13 @@ sealed class DaymarkDestination(
         selectedIcon = Icons.Filled.Settings
     )
 
+    data object FocusMode : DaymarkDestination(
+        route = "focus_mode",
+        title = "Focus Mode",
+        unselectedIcon = Icons.Outlined.Timer,
+        selectedIcon = Icons.Filled.Timer
+    )
+
     companion object {
         val topLevelDestinations: List<DaymarkDestination> = listOf(
             Today,

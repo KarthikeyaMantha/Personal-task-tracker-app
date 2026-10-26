@@ -9,7 +9,9 @@ data class UserPreferences(
     val longBreakDurationMinutes: Int = 15,
     val sessionsUntilLongBreak: Int = 4,
     val hapticFeedbackEnabled: Boolean = true,
-    val dailySummaryEnabled: Boolean = true
+    val dailySummaryEnabled: Boolean = true,
+    val endOfDayHour: Int = 17,
+    val endOfDayMinute: Int = 0
 ) {
     companion object {
         const val THEME_SYSTEM = "SYSTEM"

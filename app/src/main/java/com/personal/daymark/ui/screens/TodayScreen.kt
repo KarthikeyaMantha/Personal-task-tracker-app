@@ -62,14 +62,25 @@ import com.personal.daymark.ui.components.SwipeableTaskRow
 import com.personal.daymark.ui.components.getPriorityColor
 import com.personal.daymark.ui.screens.tasks.AddEditTaskBottomSheet
 import com.personal.daymark.ui.screens.tasks.AddEditTaskViewModel
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.runtime.rememberCoroutineScope
+import com.personal.daymark.core.focus.FocusSessionType
+import com.personal.daymark.core.focus.FocusTimerState
+import com.personal.daymark.data.datastore.UserPreferences
+import com.personal.daymark.ui.screens.today.EndOfDayReviewSheet
+import com.personal.daymark.ui.screens.today.EndOfDayViewModel
 import com.personal.daymark.ui.screens.today.TodayEvent
 import com.personal.daymark.ui.screens.today.TodayViewModel
+import kotlinx.coroutines.launch
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodayScreen(
     modifier: Modifier = Modifier,
     onNavigateToFocus: (() -> Unit)? = null,
+    onNavigateToFocusMode: (() -> Unit)? = null,
     onNavigateToInsights: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -84,12 +95,18 @@ fun TodayScreen(
 
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    val userPrefs by appContainer.settingsRepository.userPreferencesFlow
+        .collectAsState(initial = UserPreferences())
+    val timerData by appContainer.focusTimerManager.timerState.collectAsState()
 
     var selectedTaskToEdit by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var recurringTaskToDelete by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var isAddSheetOpen by remember { mutableStateOf(false) }
     var isSearchOpen by remember { mutableStateOf(false) }
     var isFocusOpen by remember { mutableStateOf(false) }
+    var isEndOfDayOpen by remember { mutableStateOf(false) }
+    var isEndOfDayPromptDismissed by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -134,8 +151,22 @@ fun TodayScreen(
             DaymarkTopAppBar(
                 title = "Daymark",
                 actions = {
+                    IconButton(onClick = { isEndOfDayOpen = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Bedtime,
+                            contentDescription = "End Day Review",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(onClick = {
-                        if (onNavigateToFocus != null) onNavigateToFocus() else isFocusOpen = true
+                        val isLinkedRunning = timerData.state != FocusTimerState.IDLE && timerData.linkedTaskId != null
+                        if (isLinkedRunning && onNavigateToFocusMode != null) {
+                            onNavigateToFocusMode()
+                        } else if (onNavigateToFocus != null) {
+                            onNavigateToFocus()
+                        } else {
+                            isFocusOpen = true
+                        }
                     }) {
                         Icon(
                             imageVector = Icons.Outlined.Timer,
@@ -179,6 +210,64 @@ fun TodayScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
+                // End-of-Day Automatic Shutdown Prompt Banner
+                val currentCal = remember { Calendar.getInstance() }
+                val currentHour = currentCal.get(Calendar.HOUR_OF_DAY)
+                val currentMinute = currentCal.get(Calendar.MINUTE)
+                val isPastShutdownTime = (currentHour > userPrefs.endOfDayHour) ||
+                        (currentHour == userPrefs.endOfDayHour && currentMinute >= userPrefs.endOfDayMinute)
+                val hasIncompleteItems = uiState.todayTasks.any { !it.task.isCompleted } || uiState.overdueTasks.isNotEmpty()
+                val showShutdownBanner = isPastShutdownTime && hasIncompleteItems && !isEndOfDayPromptDismissed
+
+                if (showShutdownBanner) {
+                    DaymarkCard(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Bedtime,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "End of Day Review",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Ready to wrap up? Review remaining tasks.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            TextButton(onClick = { isEndOfDayOpen = true }) {
+                                Text("Review", fontWeight = FontWeight.Bold)
+                            }
+                            IconButton(
+                                onClick = { isEndOfDayPromptDismissed = true },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Dismiss",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
                 // System Reliability & Permissions Banner (Alerts if exact alarms or battery optimization restrict the app)
                 com.personal.daymark.ui.components.SystemReliabilityBanner()
 
@@ -194,12 +283,22 @@ fun TodayScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Focus Deep Work Card
+                val isTimerActive = timerData.state != FocusTimerState.IDLE
+                val isLinkedTimer = isTimerActive && timerData.linkedTaskId != null
+
                 DaymarkCard(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    containerColor = if (isLinkedTimer) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                    else MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            if (onNavigateToFocus != null) onNavigateToFocus() else isFocusOpen = true
+                            if (isLinkedTimer) {
+                                if (onNavigateToFocusMode != null) onNavigateToFocusMode()
+                                else if (onNavigateToFocus != null) onNavigateToFocus()
+                                else isFocusOpen = true
+                            } else {
+                                if (onNavigateToFocus != null) onNavigateToFocus() else isFocusOpen = true
+                            }
                         }
                 ) {
                     Row(
@@ -217,12 +316,13 @@ fun TodayScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Deep Work Focus",
+                                text = if (isLinkedTimer) "Focus Active: ${timerData.linkedTaskTitle ?: "Deep Work"}" else "Deep Work Focus",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Start a 25-minute Pomodoro session",
+                                text = if (isLinkedTimer) "${timerData.formattedRemainingTime} remaining • Tap to enter Focus Mode"
+                                else "Start a 25-minute Pomodoro session",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -473,7 +573,39 @@ fun TodayScreen(
         )
         AddEditTaskBottomSheet(
             viewModel = editViewModel,
-            onDismissRequest = { selectedTaskToEdit = null }
+            onDismissRequest = { selectedTaskToEdit = null },
+            onStartFocus = { taskId, taskTitle ->
+                appContainer.focusTimerManager.startTimer(
+                    taskId = taskId,
+                    taskTitle = taskTitle,
+                    sessionType = FocusSessionType.FOCUS
+                )
+                selectedTaskToEdit = null
+                if (onNavigateToFocusMode != null) onNavigateToFocusMode()
+                else if (onNavigateToFocus != null) onNavigateToFocus()
+                else isFocusOpen = true
+            }
+        )
+    }
+
+    // End-of-Day Review Modal Sheet
+    if (isEndOfDayOpen) {
+        val endOfDayViewModel: EndOfDayViewModel = viewModel(
+            key = "today_end_of_day_vm",
+            factory = EndOfDayViewModel.provideFactory(
+                taskRepository = appContainer.taskRepository,
+                reminderScheduler = appContainer.reminderScheduler
+            )
+        )
+        EndOfDayReviewSheet(
+            viewModel = endOfDayViewModel,
+            onDismiss = { isEndOfDayOpen = false },
+            onShutdownCompleted = { message ->
+                isEndOfDayOpen = false
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(message)
+                }
+            }
         )
     }
 

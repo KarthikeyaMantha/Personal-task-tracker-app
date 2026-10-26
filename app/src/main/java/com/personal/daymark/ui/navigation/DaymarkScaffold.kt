@@ -59,27 +59,31 @@ fun DaymarkScaffold(
         }
     }
 
+    val isFocusMode = currentRoute == DaymarkDestination.FocusMode.route
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
-            DaymarkBottomNavigation(
-                currentRoute = currentRoute,
-                onNavigateToDestination = { destination ->
-                    navController.navigate(destination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+            if (!isFocusMode) {
+                DaymarkBottomNavigation(
+                    currentRoute = currentRoute,
+                    onNavigateToDestination = { destination ->
+                        navController.navigate(destination.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
                     }
-                }
-            )
+                )
+            }
         }
     ) { innerPadding ->
         DaymarkNavHost(
             navController = navController,
             modifier = Modifier
-                .padding(innerPadding)
+                .padding(if (isFocusMode) androidx.compose.foundation.layout.PaddingValues(0.dp) else innerPadding)
                 .consumeWindowInsets(innerPadding),
             targetTaskId = targetTaskId
         )

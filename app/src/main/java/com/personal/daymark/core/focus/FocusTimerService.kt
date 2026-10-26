@@ -133,7 +133,7 @@ class FocusTimerService : Service() {
 
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(EXTRA_NAVIGATE_TO, "focus")
+            putExtra(EXTRA_NAVIGATE_TO, if (data.linkedTaskId != null) "focus_mode" else "focus")
         }
         val contentPendingIntent = PendingIntent.getActivity(
             this,
