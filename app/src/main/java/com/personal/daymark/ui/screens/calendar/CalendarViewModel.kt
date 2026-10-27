@@ -125,7 +125,7 @@ class CalendarViewModel(
         val completedTasksByDate = mutableMapOf<LocalDate, Int>()
         allTasks.forEach { taskItem ->
             if (taskItem.task.isCompleted) {
-                val ts = taskItem.task.completionTimestamp ?: taskItem.task.dueDate ?: taskItem.task.updatedAt
+                val ts = taskItem.task.completionTimestamp ?: taskItem.task.updatedAt
                 if (ts > 0L) {
                     val completedDate = Instant.ofEpochMilli(ts).atZone(zoneId).toLocalDate()
                     completedTasksByDate[completedDate] = (completedTasksByDate[completedDate] ?: 0) + 1
@@ -247,8 +247,18 @@ class CalendarViewModel(
 
     fun toggleTaskCompletion(taskItem: TaskWithSubtasksAndCategory) {
         viewModelScope.launch {
-            val newStatus = !taskItem.task.isCompleted
-            taskRepository.setTaskCompleted(taskItem.task.id, newStatus)
+            if (taskItem.task.isCompleted) {
+                taskRepository.setTaskCompleted(taskItem.task.id, false)
+                if (taskItem.task.dueDate != null) {
+                    reminderScheduler?.scheduleReminder(taskItem.task.copy(isCompleted = false))
+                }
+            } else {
+                val nextTask = taskRepository.completeTaskAndGenerateNext(taskItem.task.id)
+                reminderScheduler?.cancelReminder(taskItem.task.id)
+                if (nextTask != null && nextTask.dueDate != null) {
+                    reminderScheduler?.scheduleReminder(nextTask)
+                }
+            }
         }
     }
 
@@ -418,8 +428,7 @@ class CalendarViewModel(
 
             val fromDb = completionMap[date.toString()] ?: 0
             val fromCalculated = completedTasksByDate[date] ?: 0
-            val fromTasks = tasksOnDay.count { it.task.isCompleted }
-            val effectiveCompleted = maxOf(fromDb, fromCalculated, fromTasks)
+            val effectiveCompleted = maxOf(fromDb, fromCalculated)
 
             return CalendarDay(
                 date = date,

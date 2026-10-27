@@ -140,8 +140,10 @@ fun AddEditTaskBottomSheet(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
-                    focusManager.clearFocus()
-                    viewModel.saveTask()
+                    if (!uiState.isSaving) {
+                        focusManager.clearFocus()
+                        viewModel.saveTask()
+                    }
                 })
             )
 
@@ -288,8 +290,8 @@ fun AddEditTaskBottomSheet(
                 IconButton(
                     onClick = viewModel::addSubtask,
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.primaryContainer)
                 ) {
                     Icon(
@@ -810,7 +812,7 @@ fun AddEditTaskBottomSheet(
                             DaymarkTextField(
                                 value = uiState.dosage,
                                 onValueChange = viewModel::onDosageChanged,
-                                placeholder = "e.g. 500mg, 1 tablet",
+                                placeholder = "e.g. 500mg",
                                 singleLine = true
                             )
                         }
@@ -825,7 +827,7 @@ fun AddEditTaskBottomSheet(
                             DaymarkTextField(
                                 value = uiState.medicineForm,
                                 onValueChange = viewModel::onMedicineFormChanged,
-                                placeholder = "e.g. tablet, capsule",
+                                placeholder = "e.g. Tablet",
                                 singleLine = true
                             )
                         }
@@ -956,7 +958,8 @@ fun AddEditTaskBottomSheet(
             // Save Action
             DaymarkButton(
                 text = if (uiState.taskId == null || uiState.taskId == 0L) "Create Task" else "Save Changes",
-                onClick = { viewModel.saveTask() },
+                onClick = { if (!uiState.isSaving) viewModel.saveTask() },
+                enabled = !uiState.isSaving,
                 modifier = Modifier.fillMaxWidth()
             )
 

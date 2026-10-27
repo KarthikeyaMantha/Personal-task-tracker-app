@@ -19,6 +19,7 @@ class DaymarkApplication : Application() {
         super.onCreate()
         container = DefaultAppContainer(this)
         com.personal.daymark.core.notifications.NotificationHelper.createNotificationChannels(this)
+        com.personal.daymark.core.common.DaymarkDayManager.init(this)
         container.focusTimerManager.restoreStateOnLaunch()
         CoroutineScope(Dispatchers.IO).launch {
             container.categoryRepository.seedDefaultCategoriesIfEmpty()

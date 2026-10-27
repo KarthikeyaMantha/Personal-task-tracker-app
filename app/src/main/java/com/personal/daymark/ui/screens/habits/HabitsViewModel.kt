@@ -58,11 +58,12 @@ class HabitsViewModel(
 
     val uiState: StateFlow<HabitsUiState> = combine(
         habitRepository.getActiveHabitsWithLogs(),
-        _isAddEditSheetOpen,
-        _habitToEdit,
-        _habitToDelete,
-        _selectedCategoryId
-    ) { habitsWithLogs, isAddEditOpen, habitToEdit, habitToDelete, selectedCatId ->
+        combine(_isAddEditSheetOpen, _habitToEdit, _habitToDelete) { isAddEdit, toEdit, toDelete ->
+            Triple(isAddEdit, toEdit, toDelete)
+        },
+        _selectedCategoryId,
+        com.personal.daymark.core.common.DaymarkDayManager.dayEpoch
+    ) { habitsWithLogs, (isAddEditOpen, habitToEdit, habitToDelete), selectedCatId, _ ->
         val today = LocalDate.now()
 
         val habitItems = habitsWithLogs

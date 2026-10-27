@@ -184,7 +184,7 @@ interface TaskDao {
     suspend fun getCompletedTaskCountsPerDaySync(startMillis: Long, endMillis: Long): List<DailyCompletionCount>
 
     @Query("""
-        SELECT date(COALESCE(completion_timestamp, due_date, updated_at) / 1000, 'unixepoch', 'localtime') AS day_date,
+        SELECT date(COALESCE(completion_timestamp, updated_at) / 1000, 'unixepoch', 'localtime') AS day_date,
                COUNT(*) AS completed_count
         FROM tasks
         WHERE is_completed = 1

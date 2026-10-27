@@ -19,7 +19,9 @@ sealed interface RestoreResult {
         val subtasksCount: Int,
         val habitsCount: Int,
         val habitLogsCount: Int,
-        val focusSessionsCount: Int
+        val focusSessionsCount: Int,
+        val timeBlocksCount: Int = 0,
+        val templatesCount: Int = 0
     ) : RestoreResult
 
     data class Error(val message: String) : RestoreResult
@@ -51,6 +53,8 @@ class BackupManagerImpl(
         val subtaskDao = database.subtaskDao()
         val habitDao = database.habitDao()
         val focusDao = database.focusDao()
+        val timeBlockDao = database.timeBlockDao()
+        val dayTemplateDao = database.dayTemplateDao()
 
         val categories = categoryDao.getAllCategoriesList().map { it.toDto() }
         val tasks = taskDao.getAllTasksList().map { it.toDto() }
@@ -58,6 +62,9 @@ class BackupManagerImpl(
         val habits = habitDao.getAllHabitsList().map { it.toDto() }
         val habitLogs = habitDao.getAllHabitLogsList().map { it.toDto() }
         val focusSessions = focusDao.getAllFocusSessionsList().map { it.toDto() }
+        val timeBlocks = timeBlockDao.getAllTimeBlocksList().map { it.toDto() }
+        val templates = dayTemplateDao.getAllTemplatesList().map { it.toDto() }
+        val templateItems = dayTemplateDao.getAllTemplateItemsList().map { it.toDto() }
 
         val prefs = try {
             settingsRepository.userPreferencesFlow.first().toDto()
@@ -75,6 +82,9 @@ class BackupManagerImpl(
             habits = habits,
             habitLogs = habitLogs,
             focusSessions = focusSessions,
+            timeBlocks = timeBlocks,
+            dayTemplates = templates,
+            templateItems = templateItems,
             userPreferences = prefs
         )
 
@@ -111,10 +121,15 @@ class BackupManagerImpl(
         val subtaskDao = database.subtaskDao()
         val habitDao = database.habitDao()
         val focusDao = database.focusDao()
+        val timeBlockDao = database.timeBlockDao()
+        val dayTemplateDao = database.dayTemplateDao()
 
         try {
             database.withTransaction {
                 // Delete existing records in reverse foreign-key dependency order
+                dayTemplateDao.deleteAllTemplateItems()
+                dayTemplateDao.deleteAllTemplates()
+                timeBlockDao.deleteAllTimeBlocks()
                 focusDao.deleteAllFocusSessions()
                 subtaskDao.deleteAllSubtasks()
                 habitDao.deleteAllHabitLogs()
@@ -140,6 +155,15 @@ class BackupManagerImpl(
                 }
                 if (backupData.focusSessions.isNotEmpty()) {
                     focusDao.insertFocusSessions(backupData.focusSessions.map { it.toEntity() })
+                }
+                if (backupData.dayTemplates.isNotEmpty()) {
+                    dayTemplateDao.insertTemplates(backupData.dayTemplates.map { it.toEntity() })
+                }
+                if (backupData.templateItems.isNotEmpty()) {
+                    dayTemplateDao.insertTemplateItems(backupData.templateItems.map { it.toEntity() })
+                }
+                if (backupData.timeBlocks.isNotEmpty()) {
+                    timeBlockDao.insertTimeBlocks(backupData.timeBlocks.map { it.toEntity() })
                 }
             }
 
@@ -172,7 +196,9 @@ class BackupManagerImpl(
                 subtasksCount = backupData.subtasks.size,
                 habitsCount = backupData.habits.size,
                 habitLogsCount = backupData.habitLogs.size,
-                focusSessionsCount = backupData.focusSessions.size
+                focusSessionsCount = backupData.focusSessions.size,
+                timeBlocksCount = backupData.timeBlocks.size,
+                templatesCount = backupData.dayTemplates.size
             )
         } catch (e: Exception) {
             RestoreResult.Error("Database restore failed: ${e.message}")

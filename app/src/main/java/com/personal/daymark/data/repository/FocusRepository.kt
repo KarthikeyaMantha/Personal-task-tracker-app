@@ -65,6 +65,12 @@ class FocusRepositoryImpl(
         completedAt: Long?,
         notes: String?
     ): Long = withContext(ioDispatcher) {
+        if (startedAt != 0L) {
+            val existing = focusDao.getSessionByStartedAt(startedAt)
+            if (existing != null) {
+                return@withContext existing.id
+            }
+        }
         val session = FocusSessionEntity(
             taskId = taskId,
             durationMinutes = durationMinutes,

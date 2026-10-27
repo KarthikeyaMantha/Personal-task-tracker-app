@@ -238,8 +238,18 @@ class SearchViewModel(
 
     fun toggleTaskCompletion(taskItem: TaskWithSubtasksAndCategory) {
         viewModelScope.launch {
-            val newStatus = !taskItem.task.isCompleted
-            taskRepository.setTaskCompleted(taskItem.task.id, newStatus)
+            if (taskItem.task.isCompleted) {
+                taskRepository.setTaskCompleted(taskItem.task.id, false)
+                if (taskItem.task.dueDate != null) {
+                    reminderScheduler?.scheduleReminder(taskItem.task.copy(isCompleted = false))
+                }
+            } else {
+                val nextTask = taskRepository.completeTaskAndGenerateNext(taskItem.task.id)
+                reminderScheduler?.cancelReminder(taskItem.task.id)
+                if (nextTask != null && nextTask.dueDate != null) {
+                    reminderScheduler?.scheduleReminder(nextTask)
+                }
+            }
         }
     }
 

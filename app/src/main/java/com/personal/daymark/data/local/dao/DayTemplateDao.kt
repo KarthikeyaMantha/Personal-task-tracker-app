@@ -49,4 +49,19 @@ interface DayTemplateDao {
 
     @Query("DELETE FROM template_items WHERE template_id = :templateId")
     suspend fun deleteItemsForTemplate(templateId: Long)
+
+    @Query("SELECT * FROM day_templates ORDER BY name ASC")
+    suspend fun getAllTemplatesList(): List<DayTemplateEntity>
+
+    @Query("SELECT * FROM template_items")
+    suspend fun getAllTemplateItemsList(): List<TemplateItemEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTemplates(templates: List<DayTemplateEntity>)
+
+    @Query("DELETE FROM day_templates")
+    suspend fun deleteAllTemplates()
+
+    @Query("DELETE FROM template_items")
+    suspend fun deleteAllTemplateItems()
 }

@@ -102,6 +102,7 @@ fun CalendarScreen(
     var selectedTaskToEdit by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var isSearchOpen by remember { mutableStateOf(false) }
     var quickAddSessionKey by remember { mutableLongStateOf(0L) }
+    var editTaskSessionKey by remember { mutableLongStateOf(0L) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -109,7 +110,7 @@ fun CalendarScreen(
             FloatingActionButton(
                 onClick = {
                     quickAddSessionKey = System.currentTimeMillis()
-                    viewModel.openQuickAdd()
+                    viewModel.openQuickAdd(uiState.selectedDate)
                 },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -139,11 +140,8 @@ fun CalendarScreen(
                         )
                     }
                     IconButton(onClick = {
-                        if (uiState.selectedDate == java.time.LocalDate.now() && onNavigateToToday != null) {
-                            onNavigateToToday()
-                        } else {
-                            viewModel.jumpToToday()
-                        }
+                        viewModel.selectDate(java.time.LocalDate.now())
+                        onNavigateToToday?.invoke()
                     }) {
                         Icon(
                             imageVector = Icons.Default.Today,
@@ -247,7 +245,10 @@ fun CalendarScreen(
                         onDateSelected = viewModel::selectDate,
                         onToggleTask = viewModel::toggleTaskCompletion,
                         onDeleteTask = viewModel::deleteTask,
-                        onTaskClick = { selectedTaskToEdit = it }
+                        onTaskClick = {
+                            editTaskSessionKey = System.currentTimeMillis()
+                            selectedTaskToEdit = it
+                        }
                     )
                 }
                 CalendarViewMode.WEEKLY -> {
@@ -256,7 +257,10 @@ fun CalendarScreen(
                         onDateSelected = viewModel::selectDate,
                         onToggleTask = viewModel::toggleTaskCompletion,
                         onDeleteTask = viewModel::deleteTask,
-                        onTaskClick = { selectedTaskToEdit = it }
+                        onTaskClick = {
+                            editTaskSessionKey = System.currentTimeMillis()
+                            selectedTaskToEdit = it
+                        }
                     )
                 }
                 CalendarViewMode.DAILY -> {
@@ -267,12 +271,18 @@ fun CalendarScreen(
                         templates = uiState.templates,
                         onUpdateTaskTimeline = viewModel::updateTaskTimeline,
                         onToggleTaskComplete = viewModel::toggleTaskCompletion,
-                        onTaskClick = { selectedTaskToEdit = it },
+                        onTaskClick = {
+                            editTaskSessionKey = System.currentTimeMillis()
+                            selectedTaskToEdit = it
+                        },
                         onAddBusyBlock = { title, start, dur -> viewModel.addBusyBlock(title, start, dur, uiState.selectedDate) },
                         onDeleteBusyBlock = viewModel::deleteBusyBlock,
                         onApplyTemplate = { templateId -> viewModel.applyTemplate(templateId, uiState.selectedDate) },
                         onManageTemplates = { onNavigateToManageTemplates?.invoke() },
-                        onQuickAdd = { viewModel.openQuickAdd() }
+                        onQuickAdd = {
+                            quickAddSessionKey = System.currentTimeMillis()
+                            viewModel.openQuickAdd(uiState.selectedDate)
+                        }
                     )
                 }
             }
@@ -301,7 +311,7 @@ fun CalendarScreen(
     // Edit Task Sheet
     selectedTaskToEdit?.let { taskToEdit ->
         val editViewModel: AddEditTaskViewModel = viewModel(
-            key = "calendar_edit_task_${taskToEdit.task.id}",
+            key = "calendar_edit_task_${taskToEdit.task.id}_$editTaskSessionKey",
             factory = AddEditTaskViewModel.provideFactory(
                 taskId = taskToEdit.task.id,
                 taskRepository = appContainer.taskRepository,

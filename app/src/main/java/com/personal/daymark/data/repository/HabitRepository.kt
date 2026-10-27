@@ -168,16 +168,22 @@ class HabitRepositoryImpl(
         newCount
     }
 
-    override suspend fun updateHabit(habit: HabitEntity) = withContext(ioDispatcher) {
+    override suspend fun updateHabit(habit: HabitEntity): Unit = withContext(ioDispatcher) {
         habitDao.updateHabit(habit)
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
+        Unit
     }
 
-    override suspend fun deleteHabit(habit: HabitEntity) = withContext(ioDispatcher) {
+    override suspend fun deleteHabit(habit: HabitEntity): Unit = withContext(ioDispatcher) {
         habitDao.deleteHabit(habit)
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
+        Unit
     }
 
-    override suspend fun deleteHabitById(id: Long) = withContext(ioDispatcher) {
+    override suspend fun deleteHabitById(id: Long): Unit = withContext(ioDispatcher) {
         habitDao.deleteHabitById(id)
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
+        Unit
     }
 
     override suspend fun setHabitCompleted(habitId: Long, date: Long, isCompleted: Boolean) {
@@ -196,6 +202,7 @@ class HabitRepositoryImpl(
                 habitDao.deleteHabitLog(habitId, date)
                 habitDao.deleteHabitLogByDateString(habitId, dateStr)
             }
+            context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         }
     }
 
@@ -220,6 +227,7 @@ class HabitRepositoryImpl(
                 habitDao.deleteHabitLogByDateString(habitId, dateStr)
                 habitDao.deleteHabitLog(habitId, epochDay)
             }
+            context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         }
     }
 
@@ -230,7 +238,7 @@ class HabitRepositoryImpl(
         val dateStr = localDate.toString()
         val epochDay = localDate.toEpochDay()
         val existing = habitDao.getLogForDateStringSync(habitId, dateStr)
-        if (existing != null) {
+        val result = if (existing != null) {
             habitDao.deleteHabitLogByDateString(habitId, dateStr)
             habitDao.deleteHabitLog(habitId, epochDay)
             false
@@ -245,6 +253,8 @@ class HabitRepositoryImpl(
             )
             true
         }
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
+        result
     }
 
     override fun getActiveHabitsCount(): Flow<Int> {

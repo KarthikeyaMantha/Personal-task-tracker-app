@@ -3,6 +3,7 @@ package com.personal.daymark.ui.screens.focus
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -118,8 +119,11 @@ fun FocusScreen(
 
             // Phase Selection Chips (clickable when IDLE)
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 FocusSessionType.entries.forEach { type ->
                     val isSelected = timerData.sessionType == type
@@ -132,7 +136,13 @@ fun FocusScreen(
                     FilterChip(
                         selected = isSelected,
                         onClick = { viewModel.selectPhase(type) },
-                        label = { Text("${type.displayName} (${durationMin}m)") },
+                        label = {
+                            Text(
+                                text = "${type.displayName} (${durationMin}m)",
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        },
                         modifier = Modifier.padding(horizontal = 4.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = if (type.isWork) {
@@ -145,12 +155,12 @@ fun FocusScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Circular Countdown Display
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(260.dp)
+                modifier = Modifier.size(240.dp)
             ) {
                 // Background Track
                 CircularProgressIndicator(

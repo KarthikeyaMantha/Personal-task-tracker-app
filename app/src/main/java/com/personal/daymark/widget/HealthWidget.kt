@@ -41,6 +41,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+
 val medicineIdKey = ActionParameters.Key<Long>("medicine_id")
 val waterHabitIdKey = ActionParameters.Key<Long>("water_habit_id")
 
@@ -57,43 +61,31 @@ object HealthWidgetUpdater {
 class HealthWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        try {
-            val appContainer = (context.applicationContext as DaymarkApplication).container
-            val taskDao = appContainer.database.taskDao()
-            val habitRepository = appContainer.habitRepository
+        val appContainer = (context.applicationContext as DaymarkApplication).container
+        val taskDao = appContainer.database.taskDao()
+        val habitRepository = appContainer.habitRepository
 
-            val today = LocalDate.now()
-            val zone = java.time.ZoneId.systemDefault()
-            val startOfDay = today.atStartOfDay(zone).toInstant().toEpochMilli()
-            val endOfDay = today.atTime(java.time.LocalTime.MAX).atZone(zone).toInstant().toEpochMilli()
-            val medicines = taskDao.getTodayMedicinesSync(startOfDay, endOfDay)
-            val activeWithLogs = habitRepository.getActiveHabitsWithLogs().first()
+        provideContent {
+            val today = remember { LocalDate.now() }
+            val zone = remember { java.time.ZoneId.systemDefault() }
+            val startOfDay = remember(today) { today.atStartOfDay(zone).toInstant().toEpochMilli() }
+            val endOfDay = remember(today) { today.atTime(java.time.LocalTime.MAX).atZone(zone).toInstant().toEpochMilli() }
+
+            val medicines by taskDao.getTodayMedicines(startOfDay, endOfDay).collectAsState(initial = emptyList())
+            val activeWithLogs by habitRepository.getActiveHabitsWithLogs().collectAsState(initial = emptyList())
             val waterHabitWithLogs = activeWithLogs.firstOrNull { it.habit.healthMetricType.equals("water", ignoreCase = true) }
             val waterHabit = waterHabitWithLogs?.habit
             val waterLog = waterHabitWithLogs?.logs?.firstOrNull { it.date == today.toEpochDay() }
             val waterGlasses = (waterLog?.value ?: 0f).toInt()
             val targetGlasses = waterHabit?.targetValue ?: 8
 
-            provideContent {
-                GlanceTheme {
-                    HealthWidgetContent(
-                        medicines = medicines,
-                        waterHabit = waterHabit,
-                        waterGlasses = waterGlasses,
-                        targetGlasses = targetGlasses
-                    )
-                }
-            }
-        } catch (_: Throwable) {
-            provideContent {
-                GlanceTheme {
-                    HealthWidgetContent(
-                        medicines = emptyList(),
-                        waterHabit = null,
-                        waterGlasses = 0,
-                        targetGlasses = 8
-                    )
-                }
+            GlanceTheme {
+                HealthWidgetContent(
+                    medicines = medicines,
+                    waterHabit = waterHabit,
+                    waterGlasses = waterGlasses,
+                    targetGlasses = targetGlasses
+                )
             }
         }
     }
@@ -108,10 +100,22 @@ class ToggleMedicineActionCallback : ActionCallback {
         val medicineId = parameters[medicineIdKey] ?: return
         val appContainer = (context.applicationContext as DaymarkApplication).container
         val taskRepository = appContainer.taskRepository
-        val task = taskRepository.getTaskById(medicineId)
-        val newStatus = !(task?.isCompleted ?: false)
-        taskRepository.setTaskCompleted(medicineId, newStatus)
-        HealthWidget().update(context, glanceId)
+        val reminderScheduler = appContainer.reminderScheduler
+        val task = taskRepository.getTaskById(medicineId) ?: return
+
+        if (task.isCompleted) {
+            taskRepository.setTaskCompleted(medicineId, false)
+            if (task.dueDate != null) {
+                reminderScheduler.scheduleReminder(task.copy(isCompleted = false))
+            }
+        } else {
+            val nextTask = taskRepository.completeTaskAndGenerateNext(medicineId)
+            reminderScheduler.cancelReminder(medicineId)
+            if (nextTask != null && nextTask.dueDate != null) {
+                reminderScheduler.scheduleReminder(nextTask)
+            }
+        }
+        HealthWidgetUpdater.update(context)
     }
 }
 
@@ -142,7 +146,7 @@ class IncrementWaterActionCallback : ActionCallback {
             )
         }
         habitRepository.incrementWater(targetId, LocalDate.now())
-        HealthWidget().update(context, glanceId)
+        HealthWidgetUpdater.update(context)
     }
 }
 

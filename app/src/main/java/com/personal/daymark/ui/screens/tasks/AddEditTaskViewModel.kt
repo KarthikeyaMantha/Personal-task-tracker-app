@@ -79,8 +79,10 @@ class AddEditTaskViewModel(
     private val _uiState = MutableStateFlow(AddEditTaskUiState(taskId = taskId, dueDate = initialDueDate))
     val uiState: StateFlow<AddEditTaskUiState> = _uiState.asStateFlow()
 
+    private var initialTask: TaskEntity? = null
     private var initialSeriesId: String? = null
     private var initialRecurrenceRule: String? = null
+    private var isUserExplicitDueDate: Boolean = (taskId != null && taskId > 0)
 
     val categories: StateFlow<List<CategoryEntity>> = categoryRepository.getAllCategories()
         .stateIn(
@@ -110,8 +112,10 @@ class AddEditTaskViewModel(
             val taskWithDetails = taskRepository.getTaskWithDetailsById(id).firstOrNull()
             if (taskWithDetails != null) {
                 val task = taskWithDetails.task
+                initialTask = task
                 initialSeriesId = task.seriesId
                 initialRecurrenceRule = task.recurrenceRule
+                isUserExplicitDueDate = true
                 val parsedRule = RecurrenceRule.fromJson(task.recurrenceRule)
                 val subtasksState = taskWithDetails.subtasks.map {
                     SubtaskItemState(id = it.id, title = it.title, isCompleted = it.isCompleted)
@@ -143,11 +147,23 @@ class AddEditTaskViewModel(
 
     fun onTitleChanged(newTitle: String) {
         val parsed = TaskParser.parse(newTitle, categories.value)
-        _uiState.update {
-            it.copy(
+        _uiState.update { current ->
+            val updatedDueDate = if (!isUserExplicitDueDate) {
+                parsed?.dueDate ?: initialDueDate
+            } else {
+                current.dueDate
+            }
+            val updatedDueTime = if (!isUserExplicitDueDate && parsed?.dueTimeMinutes != null) {
+                parsed.dueTimeMinutes
+            } else {
+                current.dueTimeMinutes
+            }
+            current.copy(
                 title = newTitle,
                 isTitleError = false,
-                parsedResult = parsed
+                parsedResult = parsed,
+                dueDate = updatedDueDate,
+                dueTimeMinutes = updatedDueTime
             )
         }
     }
@@ -165,6 +181,7 @@ class AddEditTaskViewModel(
     }
 
     fun onDueDateSelected(newDueDate: Long?) {
+        isUserExplicitDueDate = true
         _uiState.update { it.copy(dueDate = newDueDate) }
     }
 
@@ -270,6 +287,8 @@ class AddEditTaskViewModel(
      * Fast task creation/editing with recurring support and subtask checklist sync.
      */
     fun saveTask(editMode: RecurringEditMode = RecurringEditMode.DEFAULT) {
+        if (_uiState.value.isSaving) return
+
         val currentState = _uiState.value
         val rawTitle = currentState.title.trim()
 
@@ -289,7 +308,11 @@ class AddEditTaskViewModel(
             ?: parsed?.matchedCategory?.id
             ?: categories.value.firstOrNull { it.name.equals(parsed?.detectedCategoryName, ignoreCase = true) }?.id
         val effectivePriority = if (currentState.priority == 0) (parsed?.priority ?: 0) else currentState.priority
-        val effectiveDueDate = currentState.dueDate ?: parsed?.dueDate
+        val effectiveDueDate = if (isUserExplicitDueDate) {
+            currentState.dueDate ?: parsed?.dueDate
+        } else {
+            parsed?.dueDate ?: currentState.dueDate
+        }
         val effectiveDueTime = currentState.dueTimeMinutes ?: parsed?.dueTimeMinutes
 
         val isExistingRecurring = currentState.taskId != null &&
@@ -323,6 +346,10 @@ class AddEditTaskViewModel(
             val stockVal = currentState.stockCount
             val thresholdVal = currentState.refillThreshold
 
+            val isCompleted = initialTask?.isCompleted ?: false
+            val completionTimestamp = initialTask?.completionTimestamp
+            val createdAt = initialTask?.createdAt ?: System.currentTimeMillis()
+
             val savedTaskId = if (editMode == RecurringEditMode.THIS_INSTANCE_ONLY) {
                 val taskEntity = TaskEntity(
                     id = currentState.taskId ?: 0L,
@@ -340,7 +367,10 @@ class AddEditTaskViewModel(
                     dosage = dosageVal,
                     medicineForm = formVal,
                     stockCount = stockVal,
-                    refillThreshold = thresholdVal
+                    refillThreshold = thresholdVal,
+                    isCompleted = isCompleted,
+                    completionTimestamp = completionTimestamp,
+                    createdAt = createdAt
                 )
                 taskRepository.updateTask(taskEntity)
                 taskEntity.id
@@ -367,7 +397,10 @@ class AddEditTaskViewModel(
                     dosage = dosageVal,
                     medicineForm = formVal,
                     stockCount = stockVal,
-                    refillThreshold = thresholdVal
+                    refillThreshold = thresholdVal,
+                    isCompleted = isCompleted,
+                    completionTimestamp = completionTimestamp,
+                    createdAt = createdAt
                 )
 
                 if (currentState.taskId == null || currentState.taskId == 0L) {
@@ -399,11 +432,12 @@ class AddEditTaskViewModel(
                 title = effectiveTitle,
                 dueDate = effectiveDueDate,
                 dueTime = effectiveDueTime,
+                isCompleted = isCompleted,
                 isMedicine = isMed,
                 dosage = dosageVal
             )
             if (reminderScheduler != null) {
-                if (finalTask.dueDate != null) {
+                if (!isCompleted && finalTask.dueDate != null) {
                     reminderScheduler.scheduleReminder(finalTask)
                 } else {
                     reminderScheduler.cancelReminder(finalTask.id)

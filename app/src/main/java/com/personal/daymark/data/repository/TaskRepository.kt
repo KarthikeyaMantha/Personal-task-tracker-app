@@ -130,8 +130,14 @@ class TaskRepositoryImpl(
     override suspend fun setTaskCompleted(id: Long, isCompleted: Boolean): Unit = withContext(ioDispatcher) {
         val timestamp = if (isCompleted) System.currentTimeMillis() else null
         val task = taskDao.getTaskById(id)
-        if (task != null && isCompleted && !task.isCompleted && task.isMedicine) {
-            handleMedicineCompletion(task, timestamp ?: System.currentTimeMillis())
+        if (task != null && task.isMedicine) {
+            if (isCompleted && !task.isCompleted) {
+                handleMedicineCompletion(task, timestamp ?: System.currentTimeMillis())
+            } else if (!isCompleted && task.isCompleted) {
+                handleMedicineUndo(task)
+            } else {
+                taskDao.setTaskCompleted(id, isCompleted, timestamp)
+            }
         } else {
             taskDao.setTaskCompleted(id, isCompleted, timestamp)
         }
@@ -167,6 +173,28 @@ class TaskRepositoryImpl(
                     isMedicine = false
                 )
                 taskDao.insertTask(refillTask)
+            }
+        }
+    }
+
+    private suspend fun handleMedicineUndo(task: TaskEntity) {
+        val currentStock = task.stockCount
+        val newStock = if (currentStock != null) currentStock + 1 else null
+        val updatedTask = task.copy(
+            isCompleted = false,
+            completionTimestamp = null,
+            stockCount = newStock,
+            updatedAt = System.currentTimeMillis()
+        )
+        taskDao.updateTask(updatedTask)
+
+        // Remove any auto-refill alert if stock is now above threshold
+        val threshold = task.refillThreshold
+        if (newStock != null && threshold != null && newStock > threshold) {
+            val refillTitle = "Refill ${task.title}"
+            val existing = taskDao.findPendingTaskByTitle(refillTitle)
+            if (existing != null) {
+                taskDao.deleteTask(existing)
             }
         }
     }
@@ -261,6 +289,7 @@ class TaskRepositoryImpl(
             isCompleted = false
         )
         val newId = taskDao.insertTask(nextTask)
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         nextTask.copy(id = newId)
     }
 
@@ -268,6 +297,7 @@ class TaskRepositoryImpl(
         val tasks = taskDao.getTasksBySeriesId(seriesId)
         val taskIds = tasks.map { it.id }
         taskDao.deleteTasksBySeriesId(seriesId)
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         taskIds
     }
 
@@ -298,14 +328,23 @@ class TaskRepositoryImpl(
                             dueTime = task.dueTime,
                             recurrenceRule = task.recurrenceRule,
                             seriesId = seriesId,
+                            durationMinutes = task.durationMinutes,
+                            startTime = task.startTime,
+                            isMedicine = task.isMedicine,
+                            dosage = task.dosage,
+                            medicineForm = task.medicineForm,
+                            stockCount = task.stockCount,
+                            refillThreshold = task.refillThreshold,
                             isCompleted = false
                         )
                         val newId = taskDao.insertTask(nextTask)
+                        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
                         return@withContext nextTask.copy(id = newId)
                     }
                 }
             }
         }
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         null
     }
 

@@ -45,7 +45,15 @@ fun DaymarkTextField(
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             label = if (label != null) { { Text(label) } } else null,
-            placeholder = if (placeholder != null) { { Text(placeholder) } } else null,
+            placeholder = if (placeholder != null) {
+                {
+                    Text(
+                        text = placeholder,
+                        maxLines = maxLines,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            } else null,
             leadingIcon = leadingIcon,
             trailingIcon = trailingIcon,
             isError = isError,

@@ -35,6 +35,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                         if (nextTask != null && nextTask.dueDate != null) {
                             app.container.reminderScheduler.scheduleReminder(nextTask)
                         }
+                        com.personal.daymark.widget.HealthWidgetUpdater.update(context)
                     } finally {
                         pendingResult?.finish()
                     }

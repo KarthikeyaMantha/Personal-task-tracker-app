@@ -70,12 +70,13 @@ fun FocusModeScreen(
     focusTimerManager: FocusTimerManager = (LocalContext.current.applicationContext as DaymarkApplication).appContainer.focusTimerManager
 ) {
     val timerData by focusTimerManager.timerState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val themeBg = MaterialTheme.colorScheme.background
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
 
-    // Calming subtle background animation (breathing color shift using forest green & teal accents)
+    // Calming subtle background animation adhering strictly to the active theme palette
     val infiniteTransition = rememberInfiniteTransition(label = "focusModeColorShift")
-    val startBgColor = if (isDark) Color(0xFF0A1F18) else Color(0xFFE8F5E9)
-    val endBgColor = if (isDark) Color(0xFF082324) else Color(0xFFE0F2F1)
+    val startBgColor = themeBg
+    val endBgColor = surfaceVariant.copy(alpha = 0.35f)
 
     val animatedBgColor by infiniteTransition.animateColor(
         initialValue = startBgColor,
@@ -90,7 +91,7 @@ fun FocusModeScreen(
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(
             animatedBgColor,
-            if (isDark) Color(0xFF05120E) else Color(0xFFF1F8E9)
+            themeBg
         )
     )
 
@@ -117,13 +118,13 @@ fun FocusModeScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Minimize Focus Mode",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                 )
             }
 
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.25f)
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             ) {
                 Text(
                     text = when (timerData.state) {
@@ -160,7 +161,7 @@ fun FocusModeScreen(
                     fontSize = 28.sp,
                     lineHeight = 34.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
@@ -177,7 +178,7 @@ fun FocusModeScreen(
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = (-1.5).sp
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
 

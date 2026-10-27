@@ -9,6 +9,7 @@ import com.personal.daymark.data.repository.TaskRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -40,8 +41,10 @@ class TodayViewModel(
 
     private var recentlyDeletedTask: TaskWithSubtasksAndCategory? = null
 
-    val uiState: StateFlow<TodayUiState> = taskRepository.getAllTasksWithDetails()
-        .map { allTasks ->
+    val uiState: StateFlow<TodayUiState> = combine(
+        taskRepository.getAllTasksWithDetails(),
+        com.personal.daymark.core.common.DaymarkDayManager.dayEpoch
+    ) { allTasks, _ ->
             val now = System.currentTimeMillis()
             val startOfToday = DateFormatter.getStartOfTodayMillis()
             val endOfToday = DateFormatter.getEndOfTodayMillis()

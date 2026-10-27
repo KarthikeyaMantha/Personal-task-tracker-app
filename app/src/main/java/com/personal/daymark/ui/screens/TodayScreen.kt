@@ -103,6 +103,7 @@ fun TodayScreen(
     val timerData by appContainer.focusTimerManager.timerState.collectAsState()
 
     var selectedTaskToEdit by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
+    var editSheetSessionKey by remember { mutableLongStateOf(0L) }
     var recurringTaskToDelete by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var taskToDefer by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var isAddSheetOpen by remember { mutableStateOf(false) }
@@ -394,7 +395,10 @@ fun TodayScreen(
                             dosage = taskItem.task.dosage,
                             stockCount = taskItem.task.stockCount,
                             onSnooze = { taskToDefer = taskItem },
-                            onClick = { selectedTaskToEdit = taskItem }
+                            onClick = {
+                                selectedTaskToEdit = taskItem
+                                editSheetSessionKey = System.currentTimeMillis()
+                            }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -464,7 +468,10 @@ fun TodayScreen(
                             dosage = taskItem.task.dosage,
                             stockCount = taskItem.task.stockCount,
                             onSnooze = { taskToDefer = taskItem },
-                            onClick = { selectedTaskToEdit = taskItem }
+                            onClick = {
+                                selectedTaskToEdit = taskItem
+                                editSheetSessionKey = System.currentTimeMillis()
+                            }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -535,7 +542,7 @@ fun TodayScreen(
     // Edit Task Modal Sheet
     selectedTaskToEdit?.let { taskToEdit ->
         val editViewModel: AddEditTaskViewModel = viewModel(
-            key = "today_edit_task_vm_${taskToEdit.task.id}",
+            key = "today_edit_task_vm_${taskToEdit.task.id}_$editSheetSessionKey",
             factory = AddEditTaskViewModel.provideFactory(
                 taskId = taskToEdit.task.id,
                 taskRepository = appContainer.taskRepository,
@@ -641,6 +648,7 @@ fun TodayScreen(
             onTaskClick = { task ->
                 isSearchOpen = false
                 selectedTaskToEdit = task
+                editSheetSessionKey = System.currentTimeMillis()
             }
         )
     }

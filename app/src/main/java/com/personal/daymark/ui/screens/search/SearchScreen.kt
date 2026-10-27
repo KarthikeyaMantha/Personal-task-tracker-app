@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -81,6 +82,7 @@ fun SearchScreen(
 
     val uiState by viewModel.uiState.collectAsState()
     var selectedTaskToEdit by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
+    var editSheetSessionKey by remember { mutableLongStateOf(0L) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -385,7 +387,10 @@ fun SearchScreen(
                                         subtasksCompleted = taskItem.subtasks.count { it.isCompleted },
                                         subtasksTotal = taskItem.subtasks.size,
                                         priorityColor = getPriorityColor(taskItem.task.priority),
-                                        onClick = { selectedTaskToEdit = taskItem }
+                                        onClick = {
+                                            selectedTaskToEdit = taskItem
+                                            editSheetSessionKey = System.currentTimeMillis()
+                                        }
                                     )
 
                                     // If query matched in description notes, show matching snippet
@@ -434,7 +439,7 @@ fun SearchScreen(
             // Edit Task Sheet
             selectedTaskToEdit?.let { taskToEdit ->
                 val editViewModel: AddEditTaskViewModel = viewModel(
-                    key = "search_edit_task_${taskToEdit.task.id}",
+                    key = "search_edit_task_${taskToEdit.task.id}_$editSheetSessionKey",
                     factory = AddEditTaskViewModel.provideFactory(
                         taskId = taskToEdit.task.id,
                         taskRepository = appContainer.taskRepository,

@@ -95,6 +95,11 @@ class MainActivity : ComponentActivity() {
             incomingTargetRoute = route
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        com.personal.daymark.core.common.DaymarkDayManager.notifyDayChangedOrResumed()
+    }
 }
 
 @Preview(showBackground = true)

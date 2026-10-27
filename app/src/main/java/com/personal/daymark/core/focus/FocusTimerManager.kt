@@ -91,6 +91,8 @@ class FocusTimerManager(
             .apply()
     }
 
+    private var lastRecordedStartedAt: Long = prefs.getLong(KEY_LAST_RECORDED_STARTED_AT, 0L)
+
     /**
      * Checks if a session finished while process was away, or restores active countdown.
      */
@@ -101,6 +103,8 @@ class FocusTimerManager(
             val (updated, hasCompleted) = FocusTimerEngine.restoreState(current, now)
             if (hasCompleted) {
                 // Session expired while app was dead or backgrounded!
+                _timerState.value = updated
+                persistState(updated)
                 completeSession(updated)
             } else {
                 _timerState.value = updated
@@ -278,6 +282,16 @@ class FocusTimerManager(
      * Completes the current session, writes to Room, posts notification, and advances phase.
      */
     private fun completeSession(completedData: FocusTimerData) {
+        val startedAt = completedData.sessionStartedAtEpochMillis
+        if (startedAt != 0L && startedAt == lastRecordedStartedAt) {
+            // Already recorded this session
+            return
+        }
+        if (startedAt != 0L) {
+            lastRecordedStartedAt = startedAt
+            prefs.edit().putLong(KEY_LAST_RECORDED_STARTED_AT, startedAt).apply()
+        }
+
         scope.launch {
             val durationMinutes = (completedData.totalDurationMillis / 60000L).toInt()
             focusRepository.recordFocusSession(
@@ -363,5 +377,6 @@ class FocusTimerManager(
         private const val KEY_TASK_ID = "task_id"
         private const val KEY_TASK_TITLE = "task_title"
         private const val KEY_COMPLETED_COUNT = "completed_count"
+        private const val KEY_LAST_RECORDED_STARTED_AT = "last_recorded_started_at"
     }
 }

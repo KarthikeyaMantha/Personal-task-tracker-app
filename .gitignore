@@ -51,3 +51,6 @@ captures/
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Agent configurations
+.agents/
