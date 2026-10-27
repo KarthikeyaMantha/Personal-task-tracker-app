@@ -42,20 +42,21 @@ class TodayViewModel(
 
     val uiState: StateFlow<TodayUiState> = taskRepository.getAllTasksWithDetails()
         .map { allTasks ->
+            val now = System.currentTimeMillis()
             val startOfToday = DateFormatter.getStartOfTodayMillis()
             val endOfToday = DateFormatter.getEndOfTodayMillis()
 
-            // Overdue: Not completed, has a due date, and due date is strictly before start of today
+            // Overdue: Not completed, has a due date, and due date is strictly before today
             val overdueTasks = allTasks.filter { item ->
                 !item.task.isCompleted &&
                         item.task.dueDate != null &&
-                        item.task.dueDate < startOfToday
+                        DateFormatter.isBeforeToday(item.task.dueDate)
             }.sortedBy { it.task.dueDate }
 
             // Today: Scheduled for today (either complete or incomplete)
             val todayTasks = allTasks.filter { item ->
                 item.task.dueDate != null &&
-                        item.task.dueDate in startOfToday..endOfToday
+                        (DateFormatter.isSameDay(item.task.dueDate, now) || item.task.dueDate in startOfToday..endOfToday)
             }.sortedWith(
                 compareBy<TaskWithSubtasksAndCategory> { it.task.isCompleted }
                     .thenByDescending { it.task.priority }
@@ -66,7 +67,7 @@ class TodayViewModel(
             val completedToday = allTasks.count { item ->
                 item.task.isCompleted &&
                         item.task.completionTimestamp != null &&
-                        item.task.completionTimestamp >= startOfToday
+                        DateFormatter.isSameDay(item.task.completionTimestamp, now)
             }
 
             // Total tasks requiring attention today:
@@ -81,7 +82,6 @@ class TodayViewModel(
                 0f
             }
 
-            val now = System.currentTimeMillis()
             val upcomingReminders = todayTasks.count { item ->
                 if (item.task.isCompleted || item.task.dueDate == null) false
                 else {

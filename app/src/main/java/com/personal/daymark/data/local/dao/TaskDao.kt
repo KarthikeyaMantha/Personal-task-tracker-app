@@ -195,7 +195,12 @@ interface TaskDao {
     @Query("""
         SELECT * FROM tasks 
         WHERE is_medicine = 1 
-          AND ((due_date >= :startOfDay AND due_date <= :endOfDay) OR (is_completed = 0 AND due_date < :startOfDay))
+          AND (
+            due_date IS NULL 
+            OR (due_date >= :startOfDay AND due_date <= :endOfDay) 
+            OR (is_completed = 0 AND due_date < :startOfDay)
+            OR (is_completed = 1 AND completion_timestamp >= :startOfDay AND completion_timestamp <= :endOfDay)
+          )
         ORDER BY is_completed ASC, due_time ASC, title ASC
     """)
     fun getTodayMedicines(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>>
@@ -203,7 +208,12 @@ interface TaskDao {
     @Query("""
         SELECT * FROM tasks 
         WHERE is_medicine = 1 
-          AND ((due_date >= :startOfDay AND due_date <= :endOfDay) OR (is_completed = 0 AND due_date < :startOfDay))
+          AND (
+            due_date IS NULL 
+            OR (due_date >= :startOfDay AND due_date <= :endOfDay) 
+            OR (is_completed = 0 AND due_date < :startOfDay)
+            OR (is_completed = 1 AND completion_timestamp >= :startOfDay AND completion_timestamp <= :endOfDay)
+          )
         ORDER BY is_completed ASC, due_time ASC, title ASC
     """)
     suspend fun getTodayMedicinesSync(startOfDay: Long, endOfDay: Long): List<TaskEntity>

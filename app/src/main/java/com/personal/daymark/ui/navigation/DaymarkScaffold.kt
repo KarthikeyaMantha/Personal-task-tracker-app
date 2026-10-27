@@ -68,12 +68,23 @@ fun DaymarkScaffold(
                 DaymarkBottomNavigation(
                     currentRoute = currentRoute,
                     onNavigateToDestination = { destination ->
-                        navController.navigate(destination.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+                        if (destination == DaymarkDestination.Today) {
+                            navController.navigate(DaymarkDestination.Today.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    inclusive = false
+                                    saveState = false
+                                }
+                                launchSingleTop = true
+                                restoreState = false
                             }
-                            launchSingleTop = true
-                            restoreState = true
+                        } else {
+                            navController.navigate(destination.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     }
                 )

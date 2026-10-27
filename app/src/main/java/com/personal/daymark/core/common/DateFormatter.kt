@@ -91,6 +91,23 @@ object DateFormatter {
         }
     }
 
+    fun isSameDay(millis1: Long?, millis2: Long = System.currentTimeMillis()): Boolean {
+        if (millis1 == null) return false
+        val c1 = Calendar.getInstance().apply { timeInMillis = millis1 }
+        val c2 = Calendar.getInstance().apply { timeInMillis = millis2 }
+        return c1.get(Calendar.YEAR) == c2.get(Calendar.YEAR) &&
+                c1.get(Calendar.DAY_OF_YEAR) == c2.get(Calendar.DAY_OF_YEAR)
+    }
+
+    fun isBeforeToday(millis: Long?): Boolean {
+        if (millis == null) return false
+        val taskCal = Calendar.getInstance().apply { timeInMillis = millis }
+        val todayCal = Calendar.getInstance()
+        if (taskCal.get(Calendar.YEAR) < todayCal.get(Calendar.YEAR)) return true
+        if (taskCal.get(Calendar.YEAR) > todayCal.get(Calendar.YEAR)) return false
+        return taskCal.get(Calendar.DAY_OF_YEAR) < todayCal.get(Calendar.DAY_OF_YEAR)
+    }
+
     fun getFormattedCurrentDate(millis: Long = System.currentTimeMillis()): String {
         val format = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
         return format.format(Date(millis))

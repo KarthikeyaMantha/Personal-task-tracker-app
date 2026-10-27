@@ -94,12 +94,13 @@ fun FocusModeScreen(
         )
     )
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(brush = gradientBrush)
             .statusBarsPadding()
-            .navigationBarsPadding()
+            .navigationBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Top Minimize/Back Action
         Row(
@@ -141,13 +142,14 @@ fun FocusModeScreen(
             }
         }
 
+        Spacer(modifier = Modifier.weight(1f))
+
         // Center Content: Linked Task Title & Prominent Countdown
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Task Name
             val taskTitle = timerData.linkedTaskTitle ?: "Deep Work Focus"
@@ -259,5 +261,7 @@ fun FocusModeScreen(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.weight(1.2f))
     }
 }

@@ -58,7 +58,8 @@ interface HabitRepository {
 
 class HabitRepositoryImpl(
     private val habitDao: HabitDao,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val context: android.content.Context? = null
 ) : HabitRepository {
 
     override fun getActiveHabitsWithLogs(): Flow<List<HabitWithLogs>> {
@@ -137,6 +138,7 @@ class HabitRepositoryImpl(
             loggedAt = System.currentTimeMillis()
         )
         val id = habitDao.insertHabitLog(log)
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         log.copy(id = id)
     }
 
@@ -162,6 +164,7 @@ class HabitRepositoryImpl(
             loggedAt = System.currentTimeMillis()
         )
         habitDao.insertHabitLog(log)
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         newCount
     }
 

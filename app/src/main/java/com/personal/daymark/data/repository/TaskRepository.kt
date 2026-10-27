@@ -61,7 +61,8 @@ interface TaskRepository {
 class TaskRepositoryImpl(
     private val taskDao: TaskDao,
     private val subtaskDao: SubtaskDao,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val context: android.content.Context? = null
 ) : TaskRepository {
 
     override fun getAllTasksWithDetails(): Flow<List<TaskWithSubtasksAndCategory>> {
@@ -104,22 +105,29 @@ class TaskRepositoryImpl(
             }
             subtaskDao.insertSubtasks(subtasks)
         }
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         taskId
     }
 
-    override suspend fun updateTask(task: TaskEntity) = withContext(ioDispatcher) {
+    override suspend fun updateTask(task: TaskEntity): Unit = withContext(ioDispatcher) {
         taskDao.updateTask(task.copy(updatedAt = System.currentTimeMillis()))
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
+        Unit
     }
 
-    override suspend fun deleteTask(task: TaskEntity) = withContext(ioDispatcher) {
+    override suspend fun deleteTask(task: TaskEntity): Unit = withContext(ioDispatcher) {
         taskDao.deleteTask(task)
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
+        Unit
     }
 
-    override suspend fun deleteTaskById(id: Long) = withContext(ioDispatcher) {
+    override suspend fun deleteTaskById(id: Long): Unit = withContext(ioDispatcher) {
         taskDao.deleteTaskById(id)
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
+        Unit
     }
 
-    override suspend fun setTaskCompleted(id: Long, isCompleted: Boolean) = withContext(ioDispatcher) {
+    override suspend fun setTaskCompleted(id: Long, isCompleted: Boolean): Unit = withContext(ioDispatcher) {
         val timestamp = if (isCompleted) System.currentTimeMillis() else null
         val task = taskDao.getTaskById(id)
         if (task != null && isCompleted && !task.isCompleted && task.isMedicine) {
@@ -127,6 +135,8 @@ class TaskRepositoryImpl(
         } else {
             taskDao.setTaskCompleted(id, isCompleted, timestamp)
         }
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
+        Unit
     }
 
     private suspend fun handleMedicineCompletion(task: TaskEntity, timestamp: Long) {

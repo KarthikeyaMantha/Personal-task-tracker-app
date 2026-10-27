@@ -36,36 +36,64 @@ import com.personal.daymark.data.local.entity.HabitEntity
 import com.personal.daymark.data.local.entity.TaskEntity
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
+import androidx.glance.appwidget.updateAll
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 val medicineIdKey = ActionParameters.Key<Long>("medicine_id")
 val waterHabitIdKey = ActionParameters.Key<Long>("water_habit_id")
 
+object HealthWidgetUpdater {
+    fun update(context: Context) {
+        try {
+            CoroutineScope(Dispatchers.IO).launch {
+                HealthWidget().updateAll(context)
+            }
+        } catch (_: Throwable) {}
+    }
+}
+
 class HealthWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val appContainer = (context.applicationContext as DaymarkApplication).container
-        val taskDao = appContainer.database.taskDao()
-        val habitRepository = appContainer.habitRepository
+        try {
+            val appContainer = (context.applicationContext as DaymarkApplication).container
+            val taskDao = appContainer.database.taskDao()
+            val habitRepository = appContainer.habitRepository
 
-        val today = LocalDate.now()
-        val startOfDay = today.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endOfDay = today.atTime(java.time.LocalTime.MAX).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val medicines = taskDao.getTodayMedicinesSync(startOfDay, endOfDay)
-        val activeWithLogs = habitRepository.getActiveHabitsWithLogs().first()
-        val waterHabitWithLogs = activeWithLogs.firstOrNull { it.habit.healthMetricType.equals("water", ignoreCase = true) }
-        val waterHabit = waterHabitWithLogs?.habit
-        val waterLog = waterHabitWithLogs?.logs?.firstOrNull { it.date == today.toEpochDay() }
-        val waterGlasses = (waterLog?.value ?: 0f).toInt()
-        val targetGlasses = waterHabit?.targetValue ?: 8
+            val today = LocalDate.now()
+            val zone = java.time.ZoneId.systemDefault()
+            val startOfDay = today.atStartOfDay(zone).toInstant().toEpochMilli()
+            val endOfDay = today.atTime(java.time.LocalTime.MAX).atZone(zone).toInstant().toEpochMilli()
+            val medicines = taskDao.getTodayMedicinesSync(startOfDay, endOfDay)
+            val activeWithLogs = habitRepository.getActiveHabitsWithLogs().first()
+            val waterHabitWithLogs = activeWithLogs.firstOrNull { it.habit.healthMetricType.equals("water", ignoreCase = true) }
+            val waterHabit = waterHabitWithLogs?.habit
+            val waterLog = waterHabitWithLogs?.logs?.firstOrNull { it.date == today.toEpochDay() }
+            val waterGlasses = (waterLog?.value ?: 0f).toInt()
+            val targetGlasses = waterHabit?.targetValue ?: 8
 
-        provideContent {
-            GlanceTheme {
-                HealthWidgetContent(
-                    medicines = medicines,
-                    waterHabit = waterHabit,
-                    waterGlasses = waterGlasses,
-                    targetGlasses = targetGlasses
-                )
+            provideContent {
+                GlanceTheme {
+                    HealthWidgetContent(
+                        medicines = medicines,
+                        waterHabit = waterHabit,
+                        waterGlasses = waterGlasses,
+                        targetGlasses = targetGlasses
+                    )
+                }
+            }
+        } catch (_: Throwable) {
+            provideContent {
+                GlanceTheme {
+                    HealthWidgetContent(
+                        medicines = emptyList(),
+                        waterHabit = null,
+                        waterGlasses = 0,
+                        targetGlasses = 8
+                    )
+                }
             }
         }
     }
@@ -80,7 +108,9 @@ class ToggleMedicineActionCallback : ActionCallback {
         val medicineId = parameters[medicineIdKey] ?: return
         val appContainer = (context.applicationContext as DaymarkApplication).container
         val taskRepository = appContainer.taskRepository
-        taskRepository.setTaskCompleted(medicineId, true)
+        val task = taskRepository.getTaskById(medicineId)
+        val newStatus = !(task?.isCompleted ?: false)
+        taskRepository.setTaskCompleted(medicineId, newStatus)
         HealthWidget().update(context, glanceId)
     }
 }
@@ -142,7 +172,7 @@ private fun HealthWidgetContent(
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 ),
-                modifier = GlanceModifier.defaultWeight()
+                modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<com.personal.daymark.MainActivity>())
             )
 
             Button(
@@ -151,7 +181,7 @@ private fun HealthWidgetContent(
             )
         }
 
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(6.dp))
 
         // Medicine Schedule Section
         Text(

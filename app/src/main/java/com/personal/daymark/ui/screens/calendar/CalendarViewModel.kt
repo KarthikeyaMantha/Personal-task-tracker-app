@@ -121,6 +121,18 @@ class CalendarViewModel(
         val busyBlocksForDate = allTimeBlocks.filter { it.date == selectedDateStr }
         val completionMap = completionCounts.associate { it.dayDate to it.count }
 
+        // Also calculate completed tasks per date directly from allTasks in memory for instantaneous reactivity
+        val completedTasksByDate = mutableMapOf<LocalDate, Int>()
+        allTasks.forEach { taskItem ->
+            if (taskItem.task.isCompleted) {
+                val ts = taskItem.task.completionTimestamp ?: taskItem.task.dueDate ?: taskItem.task.updatedAt
+                if (ts > 0L) {
+                    val completedDate = Instant.ofEpochMilli(ts).atZone(zoneId).toLocalDate()
+                    completedTasksByDate[completedDate] = (completedTasksByDate[completedDate] ?: 0) + 1
+                }
+            }
+        }
+
         // Group tasks by LocalDate
         val tasksByDate = mutableMapOf<LocalDate, MutableList<TaskWithSubtasksAndCategory>>()
         val overdue = mutableListOf<TaskWithSubtasksAndCategory>()
@@ -145,10 +157,10 @@ class CalendarViewModel(
         ) ?: emptyList()
 
         // Build month grid days with completion heatmap counts
-        val monthGrid = buildMonthGrid(displayedMonth, selectedDate, today, tasksByDate, completionMap, weekStartDay)
+        val monthGrid = buildMonthGrid(displayedMonth, selectedDate, today, tasksByDate, completionMap, completedTasksByDate, weekStartDay)
 
         // Build 7-day week strip for selectedDate's current week
-        val weekStrip = buildWeekStrip(selectedDate, today, tasksByDate, completionMap, weekStartDay)
+        val weekStrip = buildWeekStrip(selectedDate, today, tasksByDate, completionMap, completedTasksByDate, weekStartDay)
 
         val quickAddMillis = selectedDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
 
@@ -328,6 +340,7 @@ class CalendarViewModel(
             today: LocalDate,
             tasksByDate: Map<LocalDate, List<TaskWithSubtasksAndCategory>>,
             completionMap: Map<String, Int>,
+            completedTasksByDate: Map<LocalDate, Int>,
             weekStartDay: Int
         ): List<CalendarDay> {
             val days = mutableListOf<CalendarDay>()
@@ -345,13 +358,13 @@ class CalendarViewModel(
             val prevMonthLength = prevMonth.lengthOfMonth()
             for (i in leadDays downTo 1) {
                 val date = prevMonth.atDay(prevMonthLength - i + 1)
-                days.add(createCalendarDay(date, false, selectedDate, today, tasksByDate, completionMap))
+                days.add(createCalendarDay(date, false, selectedDate, today, tasksByDate, completionMap, completedTasksByDate))
             }
 
             // Days of current month
             for (day in 1..displayedMonth.lengthOfMonth()) {
                 val date = displayedMonth.atDay(day)
-                days.add(createCalendarDay(date, true, selectedDate, today, tasksByDate, completionMap))
+                days.add(createCalendarDay(date, true, selectedDate, today, tasksByDate, completionMap, completedTasksByDate))
             }
 
             // Trailing days from next month to complete 5 or 6 weeks (multiples of 7)
@@ -359,7 +372,7 @@ class CalendarViewModel(
             var trailingDay = 1
             while (days.size % 7 != 0 || days.size < 35) {
                 val date = nextMonth.atDay(trailingDay++)
-                days.add(createCalendarDay(date, false, selectedDate, today, tasksByDate, completionMap))
+                days.add(createCalendarDay(date, false, selectedDate, today, tasksByDate, completionMap, completedTasksByDate))
             }
 
             return days
@@ -370,6 +383,7 @@ class CalendarViewModel(
             today: LocalDate,
             tasksByDate: Map<LocalDate, List<TaskWithSubtasksAndCategory>>,
             completionMap: Map<String, Int>,
+            completedTasksByDate: Map<LocalDate, Int>,
             weekStartDay: Int
         ): List<CalendarDay> {
             val startDayOffset = if (weekStartDay == UserPreferences.WEEK_START_SUNDAY) {
@@ -380,7 +394,7 @@ class CalendarViewModel(
             val startOfWeek = selectedDate.minusDays(startDayOffset.toLong())
             return (0..6).map { i ->
                 val date = startOfWeek.plusDays(i.toLong())
-                createCalendarDay(date, true, selectedDate, today, tasksByDate, completionMap)
+                createCalendarDay(date, true, selectedDate, today, tasksByDate, completionMap, completedTasksByDate)
             }
         }
 
@@ -390,7 +404,8 @@ class CalendarViewModel(
             selectedDate: LocalDate,
             today: LocalDate,
             tasksByDate: Map<LocalDate, List<TaskWithSubtasksAndCategory>>,
-            completionMap: Map<String, Int>
+            completionMap: Map<String, Int>,
+            completedTasksByDate: Map<LocalDate, Int>
         ): CalendarDay {
             val tasksOnDay = tasksByDate[date].orEmpty()
             val dots = tasksOnDay
@@ -402,8 +417,9 @@ class CalendarViewModel(
                 }
 
             val fromDb = completionMap[date.toString()] ?: 0
+            val fromCalculated = completedTasksByDate[date] ?: 0
             val fromTasks = tasksOnDay.count { it.task.isCompleted }
-            val effectiveCompleted = maxOf(fromDb, fromTasks)
+            val effectiveCompleted = maxOf(fromDb, fromCalculated, fromTasks)
 
             return CalendarDay(
                 date = date,

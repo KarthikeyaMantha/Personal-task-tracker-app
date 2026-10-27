@@ -50,6 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -81,6 +82,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CalendarScreen(
     onNavigateToManageTemplates: (() -> Unit)? = null,
+    onNavigateToToday: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -99,12 +101,16 @@ fun CalendarScreen(
     val uiState by viewModel.uiState.collectAsState()
     var selectedTaskToEdit by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var isSearchOpen by remember { mutableStateOf(false) }
+    var quickAddSessionKey by remember { mutableLongStateOf(0L) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { viewModel.openQuickAdd() },
+                onClick = {
+                    quickAddSessionKey = System.currentTimeMillis()
+                    viewModel.openQuickAdd()
+                },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(16.dp)
@@ -132,10 +138,16 @@ fun CalendarScreen(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    IconButton(onClick = { viewModel.jumpToToday() }) {
+                    IconButton(onClick = {
+                        if (uiState.selectedDate == java.time.LocalDate.now() && onNavigateToToday != null) {
+                            onNavigateToToday()
+                        } else {
+                            viewModel.jumpToToday()
+                        }
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Today,
-                            contentDescription = "Jump to Today",
+                            contentDescription = "Jump to Today / Home",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -270,7 +282,7 @@ fun CalendarScreen(
     // Quick Add Task Sheet pre-filled with selected calendar date
     if (uiState.isQuickAddOpen) {
         val addViewModel: AddEditTaskViewModel = viewModel(
-            key = "calendar_quick_add_${uiState.quickAddDateMillis}",
+            key = "calendar_quick_add_${uiState.quickAddDateMillis}_$quickAddSessionKey",
             factory = AddEditTaskViewModel.provideFactory(
                 taskId = null,
                 initialDueDate = uiState.quickAddDateMillis,

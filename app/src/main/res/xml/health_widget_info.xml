@@ -8,5 +8,6 @@
     android:targetCellHeight="2"
     android:maxResizeWidth="400dp"
     android:maxResizeHeight="400dp"
+    android:initialLayout="@layout/glance_default_loading_layout"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen" />

@@ -39,7 +39,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val taskRepository: TaskRepository by lazy {
         TaskRepositoryImpl(
             taskDao = database.taskDao(),
-            subtaskDao = database.subtaskDao()
+            subtaskDao = database.subtaskDao(),
+            context = context
         )
     }
 
@@ -52,7 +53,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val habitRepository: HabitRepository by lazy {
         HabitRepositoryImpl(
-            habitDao = database.habitDao()
+            habitDao = database.habitDao(),
+            context = context
         )
     }
 

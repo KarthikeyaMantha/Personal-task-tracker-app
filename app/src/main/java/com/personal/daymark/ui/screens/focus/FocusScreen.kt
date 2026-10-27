@@ -45,7 +45,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -171,13 +173,19 @@ fun FocusScreen(
                 )
 
                 // Centered Time and Phase Label
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     Text(
                         text = timerData.formattedRemainingTime,
                         style = MaterialTheme.typography.displayLarge.copy(
-                            fontSize = 52.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = (-1).sp
                         ),
+                        textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 

@@ -47,7 +47,17 @@ fun DaymarkNavHost(
         }
         composable(route = DaymarkDestination.Calendar.route) {
             CalendarScreen(
-                onNavigateToManageTemplates = { navController.navigate(DaymarkDestination.ManageTemplates.route) }
+                onNavigateToManageTemplates = { navController.navigate(DaymarkDestination.ManageTemplates.route) },
+                onNavigateToToday = {
+                    navController.navigate(DaymarkDestination.Today.route) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            inclusive = false
+                            saveState = false
+                        }
+                        launchSingleTop = true
+                        restoreState = false
+                    }
+                }
             )
         }
         composable(route = DaymarkDestination.Habits.route) {

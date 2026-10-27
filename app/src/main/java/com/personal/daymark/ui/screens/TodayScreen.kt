@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -105,6 +106,7 @@ fun TodayScreen(
     var recurringTaskToDelete by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var taskToDefer by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var isAddSheetOpen by remember { mutableStateOf(false) }
+    var addSheetSessionKey by remember { mutableLongStateOf(0L) }
     var isSearchOpen by remember { mutableStateOf(false) }
     var isFocusOpen by remember { mutableStateOf(false) }
     var isEndOfDayOpen by remember { mutableStateOf(false) }
@@ -132,7 +134,10 @@ fun TodayScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { isAddSheetOpen = true },
+                onClick = {
+                    addSheetSessionKey = System.currentTimeMillis()
+                    isAddSheetOpen = true
+                },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(16.dp)
@@ -337,50 +342,6 @@ fun TodayScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Insights & Weekly Review Card
-                DaymarkCard(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onNavigateToInsights?.invoke()
-                        }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.TrendingUp,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Insights & Weekly Review",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Productivity rhythms & 7-day retrospective",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "View Insights",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
 
                 // Overdue Tasks Section (prominent alert banner)
                 if (uiState.overdueTasks.isNotEmpty()) {
@@ -555,9 +516,10 @@ fun TodayScreen(
     // Add Task Modal Sheet
     if (isAddSheetOpen) {
         val addViewModel: AddEditTaskViewModel = viewModel(
-            key = "today_add_task_vm",
+            key = "today_add_task_vm_$addSheetSessionKey",
             factory = AddEditTaskViewModel.provideFactory(
                 taskId = null,
+                initialDueDate = DateFormatter.getStartOfTodayMillis(),
                 taskRepository = appContainer.taskRepository,
                 categoryRepository = appContainer.categoryRepository,
                 reminderScheduler = appContainer.reminderScheduler,

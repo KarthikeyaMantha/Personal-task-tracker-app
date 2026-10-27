@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -96,6 +97,7 @@ fun TasksScreen(
     var recurringTaskToDelete by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var taskToDefer by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var isAddSheetOpen by remember { mutableStateOf(false) }
+    var addSheetSessionKey by remember { mutableLongStateOf(0L) }
     var isManageCategoriesOpen by remember { mutableStateOf(false) }
     var isSearchOpen by remember { mutableStateOf(false) }
     var isSearchExpanded by remember { mutableStateOf(false) }
@@ -132,7 +134,10 @@ fun TasksScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { isAddSheetOpen = true },
+                onClick = {
+                    addSheetSessionKey = System.currentTimeMillis()
+                    isAddSheetOpen = true
+                },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(16.dp)
@@ -484,7 +489,7 @@ fun TasksScreen(
     // Add Task Sheet
     if (isAddSheetOpen) {
         val addViewModel: AddEditTaskViewModel = viewModel(
-            key = "tasks_view_add_vm",
+            key = "tasks_view_add_vm_$addSheetSessionKey",
             factory = AddEditTaskViewModel.provideFactory(
                 taskId = null,
                 taskRepository = appContainer.taskRepository,
