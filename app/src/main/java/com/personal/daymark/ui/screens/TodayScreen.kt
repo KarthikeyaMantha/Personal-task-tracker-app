@@ -172,58 +172,82 @@ fun TodayScreen(
                 title = "Daymark",
                 navigationIcon = if (onOpenDrawer != null) {
                     {
-                        IconButton(onClick = onOpenDrawer) {
+                        IconButton(
+                            onClick = onOpenDrawer,
+                            modifier = Modifier.size(38.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Menu,
                                 contentDescription = "Open navigation menu",
-                                tint = MaterialTheme.colorScheme.onSurface
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
                 } else null,
                 actions = {
-                    IconButton(onClick = { isSearchOpen = true }) {
+                    IconButton(
+                        onClick = { isSearchOpen = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = { isVoiceInputOpen = true }) {
+                    IconButton(
+                        onClick = { isVoiceInputOpen = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Mic,
                             contentDescription = "Voice Action",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = {
-                        val isLinkedRunning = timerData.state != FocusTimerState.IDLE && timerData.linkedTaskId != null
-                        if (isLinkedRunning && onNavigateToFocusMode != null) {
-                            onNavigateToFocusMode()
-                        } else if (onNavigateToFocus != null) {
-                            onNavigateToFocus()
-                        } else {
-                            isFocusOpen = true
-                        }
-                    }) {
+                    IconButton(
+                        onClick = {
+                            val isLinkedRunning = timerData.state != FocusTimerState.IDLE && timerData.linkedTaskId != null
+                            if (isLinkedRunning && onNavigateToFocusMode != null) {
+                                onNavigateToFocusMode()
+                            } else if (onNavigateToFocus != null) {
+                                onNavigateToFocus()
+                            } else {
+                                isFocusOpen = true
+                            }
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Outlined.Timer,
                             contentDescription = "Focus Timer",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = { onNavigateToInsights?.invoke() }) {
+                    IconButton(
+                        onClick = { onNavigateToInsights?.invoke() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.TrendingUp,
                             contentDescription = "Insights",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = { isEndOfDayOpen = true }) {
+                    IconButton(
+                        onClick = { isEndOfDayOpen = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Outlined.Bedtime,
                             contentDescription = "Wrap up today",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
