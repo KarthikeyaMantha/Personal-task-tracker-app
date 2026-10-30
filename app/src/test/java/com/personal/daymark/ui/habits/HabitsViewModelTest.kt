@@ -61,6 +61,40 @@ class HabitsViewModelTest {
             colorHex: String,
             categoryId: Long?
         ): Long {
+            return createHabit(name, note, frequency, targetWeekdays, colorHex, categoryId, null, null, null, null, null)
+        }
+
+        override suspend fun createHabit(
+            name: String,
+            note: String?,
+            frequency: String,
+            targetWeekdays: Int,
+            colorHex: String,
+            categoryId: Long?,
+            healthMetricType: String?,
+            targetValue: Int?,
+            unit: String?,
+            reminderTime: Int?,
+            targetDurationMinutes: Int?
+        ): Long = createHabit(
+            name, note, frequency, targetWeekdays, colorHex, categoryId, healthMetricType, targetValue, unit, reminderTime, targetDurationMinutes, "ANYTIME", false
+        )
+
+        override suspend fun createHabit(
+            name: String,
+            note: String?,
+            frequency: String,
+            targetWeekdays: Int,
+            colorHex: String,
+            categoryId: Long?,
+            healthMetricType: String?,
+            targetValue: Int?,
+            unit: String?,
+            reminderTime: Int?,
+            targetDurationMinutes: Int?,
+            routineTimeOfDay: String,
+            isFrozen: Boolean
+        ): Long {
             val newId = (habits.size + 1).toLong()
             val newHabit = HabitEntity(
                 id = newId,
@@ -69,7 +103,14 @@ class HabitsViewModelTest {
                 frequency = frequency,
                 targetWeekdays = targetWeekdays,
                 colorHex = colorHex,
-                categoryId = categoryId
+                categoryId = categoryId,
+                healthMetricType = healthMetricType,
+                targetValue = targetValue,
+                unit = unit,
+                reminderTime = reminderTime,
+                targetDurationMinutes = targetDurationMinutes,
+                routineTimeOfDay = routineTimeOfDay,
+                isFrozen = isFrozen
             )
             habits.add(newHabit)
             updateFlow()
@@ -137,6 +178,37 @@ class HabitsViewModelTest {
                 )
                 updateFlow()
                 true
+            }
+        }
+
+        override suspend fun toggleHabitFreeze(habitId: Long, localDate: LocalDate): Boolean {
+            val dateStr = localDate.toString()
+            val existing = logs.find { it.habitId == habitId && it.dateString == dateStr }
+            return if (existing != null && existing.isFrozen) {
+                logs.remove(existing)
+                updateFlow()
+                false
+            } else {
+                val newLog = existing?.copy(isFrozen = true) ?: HabitLogEntity(
+                    id = (logs.size + 1).toLong(),
+                    habitId = habitId,
+                    date = localDate.toEpochDay(),
+                    dateString = dateStr,
+                    isCompleted = false,
+                    isFrozen = true
+                )
+                if (existing != null) logs.remove(existing)
+                logs.add(newLog)
+                updateFlow()
+                true
+            }
+        }
+
+        override suspend fun setHabitFrozen(habitId: Long, isFrozen: Boolean) {
+            val index = habits.indexOfFirst { it.id == habitId }
+            if (index >= 0) {
+                habits[index] = habits[index].copy(isFrozen = isFrozen)
+                updateFlow()
             }
         }
 
@@ -270,5 +342,61 @@ class HabitsViewModelTest {
         advanceUntilIdle()
 
         assertTrue(fakeHabitRepo.habits.isEmpty())
+    }
+
+    @Test
+    fun routineFilter_filtersHabitsAccurately() = runTest {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect {}
+        }
+        advanceUntilIdle()
+
+        fakeHabitRepo.habits.add(
+            HabitEntity(id = 1L, name = "Morning Stretch", frequency = "DAILY", targetWeekdays = 127, routineTimeOfDay = "MORNING")
+        )
+        fakeHabitRepo.habits.add(
+            HabitEntity(id = 2L, name = "Evening Book", frequency = "DAILY", targetWeekdays = 127, routineTimeOfDay = "EVENING")
+        )
+        fakeHabitRepo.updateFlow()
+        advanceUntilIdle()
+
+        assertEquals(2, viewModel.uiState.value.habits.size)
+
+        // Filter MORNING
+        viewModel.filterByRoutine("MORNING")
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.habits.size)
+        assertEquals("Morning Stretch", viewModel.uiState.value.habits[0].habit.name)
+
+        // Reset filter
+        viewModel.filterByRoutine(null)
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.habits.size)
+    }
+
+    @Test
+    fun freezeToggle_marksHabitFrozenToday() = runTest {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect {}
+        }
+        advanceUntilIdle()
+
+        fakeHabitRepo.habits.add(
+            HabitEntity(id = 1L, name = "Meditation", frequency = "DAILY", targetWeekdays = 127)
+        )
+        fakeHabitRepo.updateFlow()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.habits[0].isFrozenToday)
+
+        // Freeze today
+        viewModel.toggleFreezeToday(1L)
+        advanceUntilIdle()
+        assertTrue("Habit should be frozen today", viewModel.uiState.value.habits[0].isFrozenToday)
+
+        // Unfreeze today
+        viewModel.toggleFreezeToday(1L)
+        advanceUntilIdle()
+        assertFalse("Habit should not be frozen after toggle", viewModel.uiState.value.habits[0].isFrozenToday)
     }
 }

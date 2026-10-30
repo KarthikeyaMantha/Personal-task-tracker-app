@@ -23,7 +23,7 @@ object RecurrenceHelper {
         currentDueDateMillis: Long,
         dueTimeMinutes: Int?,
         rule: RecurrenceRule,
-        fromDateMillis: Long = System.currentTimeMillis(),
+        fromDateMillis: Long = currentDueDateMillis,
         zoneId: ZoneId = ZoneId.systemDefault()
     ): Long? {
         val currentDate = Instant.ofEpochMilli(currentDueDateMillis).atZone(zoneId).toLocalDate()

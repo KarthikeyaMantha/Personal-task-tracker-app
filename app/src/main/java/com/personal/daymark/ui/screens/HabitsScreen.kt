@@ -9,9 +9,11 @@ import androidx.compose.ui.Modifier
  */
 @Composable
 fun HabitsScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToFocus: (() -> Unit)? = null
 ) {
     com.personal.daymark.ui.screens.habits.HabitsScreen(
-        modifier = modifier
+        modifier = modifier,
+        onNavigateToFocus = onNavigateToFocus
     )
 }

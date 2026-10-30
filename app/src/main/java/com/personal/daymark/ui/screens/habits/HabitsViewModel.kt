@@ -22,6 +22,7 @@ data class HabitItemUiState(
     val category: CategoryEntity?,
     val isCompletedToday: Boolean,
     val isDueToday: Boolean,
+    val isFrozenToday: Boolean = false,
     val currentStreak: Int,
     val completionsLast7Days: Int,
     val completionsLast30Days: Int,
@@ -36,18 +37,21 @@ data class HabitsUiState(
     val isAddEditSheetOpen: Boolean = false,
     val habitToEdit: HabitEntity? = null,
     val habitToDelete: HabitEntity? = null,
-    val selectedCategoryId: Long? = null
+    val selectedCategoryId: Long? = null,
+    val selectedRoutineTimeOfDay: String? = null
 )
 
 class HabitsViewModel(
     private val habitRepository: HabitRepository,
-    categoryRepository: CategoryRepository
+    categoryRepository: CategoryRepository,
+    private val reminderScheduler: com.personal.daymark.core.notifications.ReminderScheduler? = null
 ) : ViewModel() {
 
     private val _isAddEditSheetOpen = MutableStateFlow(false)
     private val _habitToEdit = MutableStateFlow<HabitEntity?>(null)
     private val _habitToDelete = MutableStateFlow<HabitEntity?>(null)
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
+    private val _selectedRoutineTimeOfDay = MutableStateFlow<String?>(null)
 
     val categories: StateFlow<List<CategoryEntity>> = categoryRepository.getAllCategories()
         .stateIn(
@@ -62,17 +66,20 @@ class HabitsViewModel(
             Triple(isAddEdit, toEdit, toDelete)
         },
         _selectedCategoryId,
+        _selectedRoutineTimeOfDay,
         com.personal.daymark.core.common.DaymarkDayManager.dayEpoch
-    ) { habitsWithLogs, (isAddEditOpen, habitToEdit, habitToDelete), selectedCatId, _ ->
+    ) { habitsWithLogs, (isAddEditOpen, habitToEdit, habitToDelete), selectedCatId, selectedRoutine, _ ->
         val today = LocalDate.now()
 
         val habitItems = habitsWithLogs
             .filter { selectedCatId == null || it.habit.categoryId == selectedCatId }
+            .filter { selectedRoutine == null || it.habit.routineTimeOfDay.equals(selectedRoutine, ignoreCase = true) }
             .map { habitWithLogs ->
                 val habit = habitWithLogs.habit
                 val logs = habitWithLogs.logs
                 val isCompletedToday = HabitCalculationHelper.isCompletedOnDate(logs, today)
                 val isDueToday = HabitCalculationHelper.isScheduledOnDate(habit, today)
+                val isFrozenToday = HabitCalculationHelper.isFrozenOnDate(logs, today) || habit.isFrozen
                 val streak = HabitCalculationHelper.calculateCurrentStreak(habit, logs, today)
                 val last7 = HabitCalculationHelper.calculateCompletionsInWindow(logs, today, 7)
                 val last30 = HabitCalculationHelper.calculateCompletionsInWindow(logs, today, 30)
@@ -84,6 +91,7 @@ class HabitsViewModel(
                     category = habitWithLogs.category,
                     isCompletedToday = isCompletedToday,
                     isDueToday = isDueToday,
+                    isFrozenToday = isFrozenToday,
                     currentStreak = streak,
                     completionsLast7Days = last7,
                     completionsLast30Days = last30,
@@ -99,7 +107,8 @@ class HabitsViewModel(
             isAddEditSheetOpen = isAddEditOpen,
             habitToEdit = habitToEdit,
             habitToDelete = habitToDelete,
-            selectedCategoryId = selectedCatId
+            selectedCategoryId = selectedCatId,
+            selectedRoutineTimeOfDay = selectedRoutine
         )
     }.stateIn(
         scope = viewModelScope,
@@ -134,9 +143,19 @@ class HabitsViewModel(
         _selectedCategoryId.value = categoryId
     }
 
+    fun filterByRoutine(routineTimeOfDay: String?) {
+        _selectedRoutineTimeOfDay.value = routineTimeOfDay
+    }
+
     fun toggleCompletionToday(habitId: Long) {
         viewModelScope.launch {
             habitRepository.toggleHabitCompletion(habitId, LocalDate.now())
+        }
+    }
+
+    fun toggleFreezeToday(habitId: Long) {
+        viewModelScope.launch {
+            habitRepository.toggleHabitFreeze(habitId, LocalDate.now())
         }
     }
 
@@ -168,7 +187,11 @@ class HabitsViewModel(
         categoryId: Long?,
         healthMetricType: String? = null,
         targetValue: Int? = null,
-        unit: String? = null
+        unit: String? = null,
+        reminderTime: Int? = null,
+        targetDurationMinutes: Int? = null,
+        routineTimeOfDay: String = "ANYTIME",
+        isFrozen: Boolean = false
     ) {
         viewModelScope.launch {
             if (id > 0L) {
@@ -182,7 +205,11 @@ class HabitsViewModel(
                     categoryId = categoryId,
                     healthMetricType = healthMetricType,
                     targetValue = targetValue,
-                    unit = unit
+                    unit = unit,
+                    reminderTime = reminderTime,
+                    targetDurationMinutes = targetDurationMinutes,
+                    routineTimeOfDay = routineTimeOfDay,
+                    isFrozen = isFrozen
                 ) ?: HabitEntity(
                     id = id,
                     name = name,
@@ -193,11 +220,20 @@ class HabitsViewModel(
                     categoryId = categoryId,
                     healthMetricType = healthMetricType,
                     targetValue = targetValue,
-                    unit = unit
+                    unit = unit,
+                    reminderTime = reminderTime,
+                    targetDurationMinutes = targetDurationMinutes,
+                    routineTimeOfDay = routineTimeOfDay,
+                    isFrozen = isFrozen
                 )
                 habitRepository.updateHabit(updated)
+                if (updated.reminderTime != null) {
+                    reminderScheduler?.scheduleHabitReminder(updated)
+                } else {
+                    reminderScheduler?.cancelHabitReminder(updated.id)
+                }
             } else {
-                habitRepository.createHabit(
+                val newId = habitRepository.createHabit(
                     name = name,
                     note = note,
                     frequency = frequency,
@@ -206,8 +242,31 @@ class HabitsViewModel(
                     categoryId = categoryId,
                     healthMetricType = healthMetricType,
                     targetValue = targetValue,
-                    unit = unit
+                    unit = unit,
+                    reminderTime = reminderTime,
+                    targetDurationMinutes = targetDurationMinutes,
+                    routineTimeOfDay = routineTimeOfDay,
+                    isFrozen = isFrozen
                 )
+                if (reminderTime != null) {
+                    val created = HabitEntity(
+                        id = newId,
+                        name = name,
+                        note = note,
+                        frequency = frequency,
+                        targetWeekdays = targetWeekdays,
+                        colorHex = colorHex,
+                        categoryId = categoryId,
+                        healthMetricType = healthMetricType,
+                        targetValue = targetValue,
+                        unit = unit,
+                        reminderTime = reminderTime,
+                        targetDurationMinutes = targetDurationMinutes,
+                        routineTimeOfDay = routineTimeOfDay,
+                        isFrozen = isFrozen
+                    )
+                    reminderScheduler?.scheduleHabitReminder(created)
+                }
             }
             closeAddEditSheet()
         }
@@ -216,6 +275,7 @@ class HabitsViewModel(
     fun confirmDeleteHabit() {
         val habit = _habitToDelete.value ?: return
         viewModelScope.launch {
+            reminderScheduler?.cancelHabitReminder(habit.id)
             habitRepository.deleteHabitById(habit.id)
             _habitToDelete.value = null
         }
@@ -224,11 +284,12 @@ class HabitsViewModel(
     companion object {
         fun provideFactory(
             habitRepository: HabitRepository,
-            categoryRepository: CategoryRepository
+            categoryRepository: CategoryRepository,
+            reminderScheduler: com.personal.daymark.core.notifications.ReminderScheduler? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return HabitsViewModel(habitRepository, categoryRepository) as T
+                return HabitsViewModel(habitRepository, categoryRepository, reminderScheduler) as T
             }
         }
     }

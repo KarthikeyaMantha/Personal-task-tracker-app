@@ -1,5 +1,6 @@
 package com.personal.daymark.ui.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -8,18 +9,21 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 private val DaymarkDarkColorScheme = darkColorScheme(
-    primary = MossGreenPrimaryDark,
-    onPrimary = OnMossGreenDark,
-    primaryContainer = PrimaryContainerDark,
-    onPrimaryContainer = OnPrimaryContainerDark,
-    secondary = SageTealSecondaryDark,
-    onSecondary = OnSageTealDark,
+    primary = CoralPrimaryDark,
+    onPrimary = OnCoralDark,
+    primaryContainer = CoralContainerDark,
+    onPrimaryContainer = OnCoralContainerDark,
+    secondary = CrispWhiteSecondaryDark,
+    onSecondary = OnCrispWhiteDark,
     secondaryContainer = SecondaryContainerDark,
     onSecondaryContainer = OnSecondaryContainerDark,
-    tertiary = SoftSlateTertiaryDark,
+    tertiary = TangerineTertiaryDark,
     onTertiary = OnTertiaryDark,
     tertiaryContainer = TertiaryContainerDark,
     onTertiaryContainer = OnTertiaryContainerDark,
@@ -37,19 +41,19 @@ private val DaymarkDarkColorScheme = darkColorScheme(
 )
 
 private val DaymarkLightColorScheme = lightColorScheme(
-    primary = ForestGreenPrimaryLight,
-    onPrimary = OnForestGreenLight,
-    primaryContainer = PrimaryContainerLight,
-    onPrimaryContainer = OnPrimaryContainerLight,
-    secondary = SageTealSecondaryLight,
-    onSecondary = OnSageTealLight,
+    primary = CoralPrimaryLight,
+    onPrimary = OnCoralLight,
+    primaryContainer = CoralContainerLight,
+    onPrimaryContainer = OnCoralContainerLight,
+    secondary = CharcoalSecondaryLight,
+    onSecondary = OnCharcoalLight,
     secondaryContainer = SecondaryContainerLight,
     onSecondaryContainer = OnSecondaryContainerLight,
-    tertiary = EarthSlateTertiaryLight,
+    tertiary = MutedSlateTertiaryLight,
     onTertiary = OnTertiaryLight,
     tertiaryContainer = TertiaryContainerLight,
     onTertiaryContainer = OnTertiaryContainerLight,
-    background = WarmBackgroundLight,
+    background = CleanWhiteLight,
     onBackground = TextPrimaryLight,
     surface = SurfaceLight,
     onSurface = TextPrimaryLight,
@@ -75,6 +79,18 @@ fun DaymarkTheme(
         }
         darkTheme -> DaymarkDarkColorScheme
         else -> DaymarkLightColorScheme
+    }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = !darkTheme
+                insetsController.isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
     }
 
     MaterialTheme(

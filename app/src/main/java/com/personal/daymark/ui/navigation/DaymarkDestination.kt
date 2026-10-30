@@ -101,8 +101,7 @@ sealed class DaymarkDestination(
             Today,
             Tasks,
             Calendar,
-            Habits,
-            Settings
+            Habits
         )
     }
 }

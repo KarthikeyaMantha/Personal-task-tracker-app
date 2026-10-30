@@ -83,6 +83,7 @@ class AddEditTaskViewModel(
     private var initialSeriesId: String? = null
     private var initialRecurrenceRule: String? = null
     private var isUserExplicitDueDate: Boolean = (taskId != null && taskId > 0)
+    private val isSaveInProgress = java.util.concurrent.atomic.AtomicBoolean(false)
 
     val categories: StateFlow<List<CategoryEntity>> = categoryRepository.getAllCategories()
         .stateIn(
@@ -262,6 +263,15 @@ class AddEditTaskViewModel(
         }
     }
 
+    fun deleteCurrentTask() {
+        val id = _uiState.value.taskId ?: return
+        viewModelScope.launch {
+            reminderScheduler?.cancelReminder(id)
+            taskRepository.deleteTaskById(id)
+            _eventChannel.send(AddEditTaskEvent.SaveSuccess)
+        }
+    }
+
     // Medicine fields
     fun onIsMedicineToggled(isMedicine: Boolean) {
         _uiState.update { it.copy(isMedicine = isMedicine) }
@@ -287,13 +297,18 @@ class AddEditTaskViewModel(
      * Fast task creation/editing with recurring support and subtask checklist sync.
      */
     fun saveTask(editMode: RecurringEditMode = RecurringEditMode.DEFAULT) {
-        if (_uiState.value.isSaving) return
+        if (!isSaveInProgress.compareAndSet(false, true)) return
+        if (_uiState.value.isSaving) {
+            isSaveInProgress.set(false)
+            return
+        }
 
         val currentState = _uiState.value
         val rawTitle = currentState.title.trim()
 
         if (rawTitle.isBlank()) {
             _uiState.update { it.copy(isTitleError = true) }
+            isSaveInProgress.set(false)
             return
         }
 
@@ -321,12 +336,14 @@ class AddEditTaskViewModel(
 
         if (isExistingRecurring && editMode == RecurringEditMode.DEFAULT) {
             _uiState.update { it.copy(showRecurringEditDialog = true) }
+            isSaveInProgress.set(false)
             return
         }
 
         _uiState.update { it.copy(showRecurringEditDialog = false, isSaving = true) }
 
         viewModelScope.launch {
+            try {
             val ruleJson = currentState.recurrenceRule?.toJson()
 
             val effectiveStartTime = currentState.startTime ?: effectiveDueTime?.let {
@@ -445,6 +462,9 @@ class AddEditTaskViewModel(
             }
 
             _eventChannel.send(AddEditTaskEvent.SaveSuccess)
+            } finally {
+                isSaveInProgress.set(false)
+            }
         }
     }
 

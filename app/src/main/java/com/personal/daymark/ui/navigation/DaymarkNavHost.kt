@@ -24,7 +24,8 @@ fun DaymarkNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     startDestination: String = DaymarkDestination.Today.route,
-    targetTaskId: Long? = null
+    targetTaskId: Long? = null,
+    onOpenDrawer: (() -> Unit)? = null
 ) {
     NavHost(
         navController = navController,
@@ -37,9 +38,11 @@ fun DaymarkNavHost(
     ) {
         composable(route = DaymarkDestination.Today.route) {
             TodayScreen(
+                onOpenDrawer = onOpenDrawer,
                 onNavigateToFocus = { navController.navigate(DaymarkDestination.Focus.route) },
                 onNavigateToFocusMode = { navController.navigate(DaymarkDestination.FocusMode.route) },
-                onNavigateToInsights = { navController.navigate(DaymarkDestination.Insights.route) }
+                onNavigateToInsights = { navController.navigate(DaymarkDestination.Insights.route) },
+                onNavigateToHabits = { navController.navigate(DaymarkDestination.Habits.route) }
             )
         }
         composable(route = DaymarkDestination.Tasks.route) {
@@ -61,17 +64,21 @@ fun DaymarkNavHost(
             )
         }
         composable(route = DaymarkDestination.Habits.route) {
-            HabitsScreen()
+            HabitsScreen(
+                onNavigateToFocus = { navController.navigate(DaymarkDestination.Focus.route) }
+            )
         }
         composable(route = DaymarkDestination.Focus.route) {
             com.personal.daymark.ui.screens.focus.FocusScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToFocusMode = { navController.navigate(DaymarkDestination.FocusMode.route) }
+                onNavigateToFocusMode = { navController.navigate(DaymarkDestination.FocusMode.route) },
+                onNavigateToInsights = { navController.navigate(DaymarkDestination.Insights.route) }
             )
         }
         composable(route = DaymarkDestination.FocusMode.route) {
             com.personal.daymark.ui.screens.focus.FocusModeScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToInsights = { navController.navigate(DaymarkDestination.Insights.route) }
             )
         }
         composable(route = DaymarkDestination.Insights.route) {
@@ -88,6 +95,7 @@ fun DaymarkNavHost(
         }
         composable(route = DaymarkDestination.Settings.route) {
             SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
                 onNavigateToManageTemplates = { navController.navigate(DaymarkDestination.ManageTemplates.route) }
             )
         }

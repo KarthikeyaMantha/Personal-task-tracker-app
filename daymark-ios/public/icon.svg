@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#18181B" />
+      <stop offset="100%" stop-color="#121214" />
+    </linearGradient>
+    <linearGradient id="pillGrad" x1="54" y1="28" x2="54" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF2D55" />
+      <stop offset="100%" stop-color="#FF6B4A" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="108" height="108" rx="24" fill="url(#bgGrad)" />
+  <!-- Sunset Coral Pill Capsule -->
+  <path d="M38,44 A16,16 0 0,1 70,44 L70,64 A16,16 0 0,1 38,64 Z" fill="url(#pillGrad)" />
+  <!-- Sunrise Arc -->
+  <path d="M48,43 A6,6 0 0,1 60,43" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" />
+  <!-- Sun Core -->
+  <circle cx="54" cy="43" r="1.5" fill="#FFFFFF" />
+  <!-- Crisp Checkmark -->
+  <path d="M46.5,56.5 L52,62 L61.5,51.5" fill="none" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
+

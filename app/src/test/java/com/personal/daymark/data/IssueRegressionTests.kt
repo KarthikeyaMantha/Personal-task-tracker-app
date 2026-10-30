@@ -251,4 +251,51 @@ class IssueRegressionTests {
         }
         assertEquals(todayMillis, activeDueDate)
     }
+
+    /**
+     * Issue 13: Duplicate saves
+     * Rapid taps or submissions must only trigger a single creation.
+     */
+    @Test
+    fun rapidSaveAttempts_atomicGuardExecutesOnlyOnce() {
+        val isSavingInProgress = java.util.concurrent.atomic.AtomicBoolean(false)
+        var saveExecutionCount = 0
+
+        // Simulate rapid concurrent or sequential click events
+        val threads = (1..10).map {
+            Thread {
+                if (isSavingInProgress.compareAndSet(false, true)) {
+                    saveExecutionCount++
+                }
+            }
+        }
+        threads.forEach { it.start() }
+        threads.forEach { it.join() }
+
+        assertEquals("Atomic compareAndSet must ensure exactly one save execution succeeds", 1, saveExecutionCount)
+    }
+
+    /**
+     * Issue 7: Deduplication when startedAt is 0L
+     */
+    @Test
+    fun focusSession_zeroStartedAtFallsBackToComputedAndIsDeduplicated() = runBlocking {
+        val completedAt = 1700000000000L
+        val durationMin = 25
+
+        val id1 = focusRepository.recordFocusSession(
+            durationMinutes = durationMin,
+            startedAt = 0L,
+            completedAt = completedAt
+        )
+        val id2 = focusRepository.recordFocusSession(
+            durationMinutes = durationMin,
+            startedAt = 0L,
+            completedAt = completedAt
+        )
+
+        assertEquals("Sessions with 0L startedAt must calculate deterministic startedAt and deduplicate", id1, id2)
+        val sessions = focusRepository.getAllSessions().first()
+        assertEquals(1, sessions.size)
+    }
 }

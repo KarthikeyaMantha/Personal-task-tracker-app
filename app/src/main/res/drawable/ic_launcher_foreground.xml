@@ -1,12 +1,44 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Sunset Coral Pill Capsule (Signature element of Daymark design system) -->
     <path
-        android:fillColor="#FBF9F5"
-        android:pathData="M34,30h40c2.2,0 4,1.8 4,4v40c0,2.2 -1.8,4 -4,4H34c-2.2,0 -4,-1.8 -4,-4V34c0,-2.2 1.8,-4 4,-4z" />
+        android:pathData="M38,44 A16,16 0 0,1 70,44 L70,64 A16,16 0 0,1 38,64 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="28"
+                android:endX="54"
+                android:endY="80">
+                <item android:offset="0.0" android:color="#FF2D55" />
+                <item android:offset="1.0" android:color="#FF6B4A" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Sunrise Arc (Day) -->
     <path
-        android:fillColor="#40916C"
-        android:pathData="M44,52l6,6 14,-14 3,3 -17,17 -9,-9z" />
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M48,43 A6,6 0 0,1 60,43" />
+
+    <!-- Sun Core -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M52.5,43 A1.5,1.5 0 1,0 55.5,43 A1.5,1.5 0 1,0 52.5,43 Z" />
+
+    <!-- Crisp Checkmark (Mark) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M46.5,56.5 L52,62 L61.5,51.5" />
 </vector>

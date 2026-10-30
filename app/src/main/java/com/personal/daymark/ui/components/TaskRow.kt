@@ -80,6 +80,7 @@ fun TaskRow(
     dosage: String? = null,
     stockCount: Int? = null,
     onSnooze: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     val checkBackground by animateColorAsState(
@@ -257,31 +258,58 @@ fun TaskRow(
                 }
             }
 
-            // Defer / Snooze quick action button
+            // Defer / Snooze quick action button with min 48dp touch target
             if (onSnooze != null && !isCompleted) {
                 Spacer(modifier = Modifier.width(4.dp))
                 IconButton(
                     onClick = onSnooze,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Snooze,
                         contentDescription = "Snooze task",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Quick Delete Button
+            if (onDelete != null) {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete task",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            // Priority Indicator Dot
+            // Priority Indicator with Symbol and Text (not color alone)
             if (priorityColor != null) {
                 Spacer(modifier = Modifier.width(8.dp))
+                val prioritySymbol = when (priorityColor) {
+                    PriorityUrgent -> "! High"
+                    PriorityHigh -> "▲ High"
+                    PriorityMedium -> "■ Med"
+                    else -> "▼ Low"
+                }
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(priorityColor)
-                )
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(priorityColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = prioritySymbol,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = priorityColor
+                    )
+                }
             }
         }
     }
@@ -408,6 +436,7 @@ fun SwipeableTaskRow(
             dosage = dosage,
             stockCount = stockCount,
             onSnooze = onSnooze,
+            onDelete = onDelete,
             onClick = onClick
         )
     }

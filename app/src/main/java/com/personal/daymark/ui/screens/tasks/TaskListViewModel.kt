@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 enum class TaskViewFilter(val label: String) {
-    ALL("All"),
     TODAY("Today"),
+    ALL("All"),
     INBOX("Inbox"),
     UPCOMING("Upcoming"),
     OVERDUE("Overdue"),
@@ -37,7 +37,7 @@ enum class TaskSortOption(val label: String) {
 
 data class FilterCriteria(
     val categoryId: Long? = null,
-    val viewFilter: TaskViewFilter = TaskViewFilter.ALL,
+    val viewFilter: TaskViewFilter = TaskViewFilter.TODAY,
     val sortOption: TaskSortOption = TaskSortOption.DEFAULT,
     val searchQuery: String = ""
 )
@@ -46,7 +46,7 @@ data class TaskListUiState(
     val tasks: List<TaskWithSubtasksAndCategory> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val selectedCategoryId: Long? = null,
-    val selectedViewFilter: TaskViewFilter = TaskViewFilter.ALL,
+    val selectedViewFilter: TaskViewFilter = TaskViewFilter.TODAY,
     val selectedSortOption: TaskSortOption = TaskSortOption.DEFAULT,
     val searchQuery: String = "",
     val inboxCount: Int = 0,
@@ -64,10 +64,11 @@ sealed interface TaskListEvent {
 class TaskListViewModel(
     private val taskRepository: TaskRepository,
     private val categoryRepository: CategoryRepository,
-    private val reminderScheduler: com.personal.daymark.core.notifications.ReminderScheduler? = null
+    private val reminderScheduler: com.personal.daymark.core.notifications.ReminderScheduler? = null,
+    initialFilter: TaskViewFilter = TaskViewFilter.TODAY
 ) : ViewModel() {
 
-    private val _filterCriteria = MutableStateFlow(FilterCriteria())
+    private val _filterCriteria = MutableStateFlow(FilterCriteria(viewFilter = initialFilter))
 
     private val _eventChannel = Channel<TaskListEvent>(Channel.BUFFERED)
     val events = _eventChannel.receiveAsFlow()

@@ -1,10 +1,10 @@
 package com.personal.daymark.ui.screens.habits
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,8 +13,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.runtime.mutableStateOf
+import com.personal.daymark.ui.voice.VoiceInputBottomSheet
+import com.personal.daymark.ui.voice.VoiceInputViewModel
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,6 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,19 +48,26 @@ import com.personal.daymark.data.local.entity.parsedColor
 import com.personal.daymark.ui.components.DaymarkCard
 import com.personal.daymark.ui.components.DaymarkTopAppBar
 
-@OptIn(ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HabitsScreen(
     modifier: Modifier = Modifier,
-    viewModel: HabitsViewModel = viewModel(
+    onNavigateToFocus: (() -> Unit)? = null
+) {
+    val context = LocalContext.current
+    val appContainer = (context.applicationContext as DaymarkApplication).appContainer
+
+    val viewModel: HabitsViewModel = viewModel(
         factory = HabitsViewModel.provideFactory(
-            habitRepository = (LocalContext.current.applicationContext as DaymarkApplication).appContainer.habitRepository,
-            categoryRepository = (LocalContext.current.applicationContext as DaymarkApplication).appContainer.categoryRepository
+            habitRepository = appContainer.habitRepository,
+            categoryRepository = appContainer.categoryRepository,
+            reminderScheduler = appContainer.reminderScheduler
         )
     )
-) {
     val uiState by viewModel.uiState.collectAsState()
     val categories by viewModel.categories.collectAsState()
+    var habitSheetSessionKey by remember { mutableLongStateOf(0L) }
+    var isVoiceInputOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -60,7 +75,17 @@ fun HabitsScreen(
             DaymarkTopAppBar(
                 title = "Habits",
                 actions = {
-                    IconButton(onClick = { viewModel.openAddHabit() }) {
+                    IconButton(onClick = { isVoiceInputOpen = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Voice Action",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = {
+                        habitSheetSessionKey = System.currentTimeMillis()
+                        viewModel.openAddHabit()
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "New Habit",
@@ -78,11 +103,13 @@ fun HabitsScreen(
         ) {
             // Category Filter Bar (if categories exist)
             if (categories.isNotEmpty()) {
-                FlowRow(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     FilterChip(
                         selected = uiState.selectedCategoryId == null,
@@ -107,6 +134,31 @@ fun HabitsScreen(
                             )
                         )
                     }
+                }
+            }
+
+            // Routine / Time-of-Day Filter Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf(
+                    null to "All Routines",
+                    "MORNING" to "🌅 Morning",
+                    "AFTERNOON" to "☀️ Afternoon",
+                    "EVENING" to "🌙 Evening",
+                    "ANYTIME" to "⚡ Anytime"
+                ).forEach { (routineKey, label) ->
+                    val isSelected = uiState.selectedRoutineTimeOfDay.equals(routineKey, ignoreCase = true)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { viewModel.filterByRoutine(if (isSelected && routineKey != null) null else routineKey) },
+                        label = { Text(label) }
+                    )
                 }
             }
 
@@ -157,19 +209,88 @@ fun HabitsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(
-                        items = uiState.habits,
-                        key = { it.habit.id }
-                    ) { habitItem ->
-                        HabitCard(
-                            habitItem = habitItem,
-                            onToggleToday = { viewModel.toggleCompletionToday(habitItem.habit.id) },
-                            onToggleDate = { date -> viewModel.toggleCompletionForDate(habitItem.habit.id, date) },
-                            onEditHabit = { viewModel.openEditHabit(habitItem.habit) },
-                            onDeleteHabit = { viewModel.requestDeleteConfirmation(habitItem.habit) },
-                            onIncrementWater = { viewModel.incrementWater(habitItem.habit.id) },
-                            onLogHealthMetric = { value, note -> viewModel.logHealthMetric(habitItem.habit.id, value, note) }
+                    if (uiState.selectedRoutineTimeOfDay != null) {
+                        items(
+                            items = uiState.habits,
+                            key = { it.habit.id }
+                        ) { habitItem ->
+                            HabitCard(
+                                habitItem = habitItem,
+                                onToggleToday = { viewModel.toggleCompletionToday(habitItem.habit.id) },
+                                onToggleDate = { date -> viewModel.toggleCompletionForDate(habitItem.habit.id, date) },
+                                onEditHabit = { viewModel.openEditHabit(habitItem.habit) },
+                                onDeleteHabit = { viewModel.requestDeleteConfirmation(habitItem.habit) },
+                                onIncrementWater = { viewModel.incrementWater(habitItem.habit.id) },
+                                onLogHealthMetric = { value, note -> viewModel.logHealthMetric(habitItem.habit.id, value, note) },
+                                onStartTimer = { habit ->
+                                    appContainer.focusTimerManager.startTimer(
+                                        durationMinutes = habit.targetDurationMinutes ?: 15,
+                                        habitId = habit.id,
+                                        taskTitle = "Habit: ${habit.name}"
+                                    )
+                                    onNavigateToFocus?.invoke()
+                                },
+                                onToggleFreezeToday = { viewModel.toggleFreezeToday(habitItem.habit.id) }
+                            )
+                        }
+                    } else {
+                        val routines = listOf(
+                            "MORNING" to "🌅 Morning Routine",
+                            "AFTERNOON" to "☀️ Afternoon Routine",
+                            "EVENING" to "🌙 Evening Wind-down",
+                            "ANYTIME" to "⚡ Anytime Habits"
                         )
+
+                        routines.forEach { (routineKey, routineTitle) ->
+                            val habitsInRoutine = uiState.habits.filter {
+                                if (routineKey == "ANYTIME") {
+                                    it.habit.routineTimeOfDay.equals("ANYTIME", ignoreCase = true) ||
+                                        (!it.habit.routineTimeOfDay.equals("MORNING", ignoreCase = true) &&
+                                         !it.habit.routineTimeOfDay.equals("AFTERNOON", ignoreCase = true) &&
+                                         !it.habit.routineTimeOfDay.equals("EVENING", ignoreCase = true))
+                                } else {
+                                    it.habit.routineTimeOfDay.equals(routineKey, ignoreCase = true)
+                                }
+                            }
+
+                            if (habitsInRoutine.isNotEmpty()) {
+                                item(key = "header_$routineKey") {
+                                    Text(
+                                        text = routineTitle,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                    )
+                                }
+
+                                items(
+                                    items = habitsInRoutine,
+                                    key = { it.habit.id }
+                                ) { habitItem ->
+                                    HabitCard(
+                                        habitItem = habitItem,
+                                        onToggleToday = { viewModel.toggleCompletionToday(habitItem.habit.id) },
+                                        onToggleDate = { date -> viewModel.toggleCompletionForDate(habitItem.habit.id, date) },
+                                        onEditHabit = {
+                                            habitSheetSessionKey = System.currentTimeMillis()
+                                            viewModel.openEditHabit(habitItem.habit)
+                                        },
+                                        onDeleteHabit = { viewModel.requestDeleteConfirmation(habitItem.habit) },
+                                        onIncrementWater = { viewModel.incrementWater(habitItem.habit.id) },
+                                        onLogHealthMetric = { value, note -> viewModel.logHealthMetric(habitItem.habit.id, value, note) },
+                                        onStartTimer = { habit ->
+                                            appContainer.focusTimerManager.startTimer(
+                                                durationMinutes = habit.targetDurationMinutes ?: 15,
+                                                habitId = habit.id,
+                                                taskTitle = "Habit: ${habit.name}"
+                                            )
+                                            onNavigateToFocus?.invoke()
+                                        },
+                                        onToggleFreezeToday = { viewModel.toggleFreezeToday(habitItem.habit.id) }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -178,25 +299,31 @@ fun HabitsScreen(
 
     // Add / Edit Modal Sheet
     if (uiState.isAddEditSheetOpen) {
-        AddEditHabitSheet(
-            habitToEdit = uiState.habitToEdit,
-            categories = categories,
-            onDismissRequest = { viewModel.closeAddEditSheet() },
-            onSaveHabit = { id, name, note, frequency, targetWeekdays, colorHex, categoryId, healthMetricType, targetValue, unit ->
-                viewModel.saveHabit(
-                    id = id,
-                    name = name,
-                    note = note,
-                    frequency = frequency,
-                    targetWeekdays = targetWeekdays,
-                    colorHex = colorHex,
-                    categoryId = categoryId,
-                    healthMetricType = healthMetricType,
-                    targetValue = targetValue,
-                    unit = unit
-                )
-            }
-        )
+        androidx.compose.runtime.key(uiState.habitToEdit?.id, habitSheetSessionKey) {
+            AddEditHabitSheet(
+                habitToEdit = uiState.habitToEdit,
+                categories = categories,
+                onDismissRequest = { viewModel.closeAddEditSheet() },
+                onSaveHabit = { id, name, note, frequency, targetWeekdays, colorHex, categoryId, healthMetricType, targetValue, unit, reminderTime, targetDurationMinutes, routineTimeOfDay, isFrozen ->
+                    viewModel.saveHabit(
+                        id = id,
+                        name = name,
+                        note = note,
+                        frequency = frequency,
+                        targetWeekdays = targetWeekdays,
+                        colorHex = colorHex,
+                        categoryId = categoryId,
+                        healthMetricType = healthMetricType,
+                        targetValue = targetValue,
+                        unit = unit,
+                        reminderTime = reminderTime,
+                        targetDurationMinutes = targetDurationMinutes,
+                        routineTimeOfDay = routineTimeOfDay,
+                        isFrozen = isFrozen
+                    )
+                }
+            )
+        }
     }
 
     // Explicit Delete Confirmation Dialog with Cascade Warning
@@ -224,6 +351,25 @@ fun HabitsScreen(
                     Text("Cancel")
                 }
             }
+        )
+    }
+
+    // Voice Input Action Modal Sheet
+    if (isVoiceInputOpen) {
+        val voiceViewModel: VoiceInputViewModel = viewModel(
+            key = "habits_voice_input_vm",
+            factory = VoiceInputViewModel.provideFactory(
+                context = context,
+                taskRepository = appContainer.taskRepository,
+                habitRepository = appContainer.habitRepository,
+                categoryRepository = appContainer.categoryRepository,
+                reminderScheduler = appContainer.reminderScheduler
+            )
+        )
+        VoiceInputBottomSheet(
+            viewModel = voiceViewModel,
+            onDismissRequest = { isVoiceInputOpen = false },
+            onActionCompleted = { }
         )
     }
 }

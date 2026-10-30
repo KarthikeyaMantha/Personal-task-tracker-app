@@ -128,7 +128,7 @@ class TaskListViewModelTest {
         Dispatchers.setMain(testDispatcher)
         fakeTaskRepo = FakeTaskRepository()
         fakeCategoryRepo = FakeCategoryRepository()
-        viewModel = TaskListViewModel(fakeTaskRepo, fakeCategoryRepo)
+        viewModel = TaskListViewModel(fakeTaskRepo, fakeCategoryRepo, initialFilter = TaskViewFilter.ALL)
     }
 
     @After

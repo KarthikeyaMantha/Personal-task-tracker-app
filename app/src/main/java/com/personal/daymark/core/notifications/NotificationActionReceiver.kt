@@ -17,14 +17,35 @@ import kotlinx.coroutines.launch
 class NotificationActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        val app = context.applicationContext as? DaymarkApplication ?: return
+        val pendingResult = try { goAsync() } catch (e: Exception) { null }
+
+        if (intent.action == ACTION_COMPLETE_HABIT) {
+            val habitId = intent.getLongExtra(EXTRA_HABIT_ID, -1L)
+            if (habitId == -1L) {
+                pendingResult?.finish()
+                return
+            }
+            NotificationManagerCompat.from(context).cancel((100_000_000L + habitId).toInt())
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    app.container.habitRepository.setHabitCompletedForDate(habitId, java.time.LocalDate.now(), true)
+                    com.personal.daymark.widget.HealthWidgetUpdater.update(context)
+                } finally {
+                    pendingResult?.finish()
+                }
+            }
+            return
+        }
+
         val taskId = intent.getLongExtra(TaskReminderReceiver.EXTRA_TASK_ID, -1L)
-        if (taskId == -1L) return
+        if (taskId == -1L) {
+            pendingResult?.finish()
+            return
+        }
 
         // Immediately dismiss the current notification
         NotificationManagerCompat.from(context).cancel(taskId.toInt())
-
-        val app = context.applicationContext as? DaymarkApplication ?: return
-        val pendingResult = try { goAsync() } catch (e: Exception) { null }
 
         when (intent.action) {
             ACTION_COMPLETE_TASK -> {
@@ -67,6 +88,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_COMPLETE_TASK = "com.personal.daymark.ACTION_COMPLETE_TASK"
         const val ACTION_SNOOZE_TASK = "com.personal.daymark.ACTION_SNOOZE_TASK"
+        const val ACTION_COMPLETE_HABIT = "com.personal.daymark.ACTION_COMPLETE_HABIT"
         const val EXTRA_SNOOZE_MINUTES = "extra_snooze_minutes"
+        const val EXTRA_HABIT_ID = "extra_habit_id"
     }
 }

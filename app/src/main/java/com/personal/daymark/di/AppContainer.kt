@@ -94,7 +94,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         com.personal.daymark.core.focus.FocusTimerManager(
             context = context.applicationContext,
             focusRepository = focusRepository,
-            settingsRepository = settingsRepository
+            settingsRepository = settingsRepository,
+            habitRepository = habitRepository
         )
     }
 

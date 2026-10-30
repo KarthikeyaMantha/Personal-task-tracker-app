@@ -136,7 +136,7 @@ fun CalendarScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search Tasks",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     IconButton(onClick = {
@@ -404,65 +404,78 @@ private fun MonthlyCalendarView(
             }
         }
 
-        // Minimalist Completion Heatmap Legend
+        // Clear, human-friendly Calendar Legend
         item {
-            val isDark = androidx.compose.foundation.isSystemInDarkTheme()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Completed: ",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(3.dp))
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = "0",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(if (isDark) Color(0xFF1B4332).copy(alpha = 0.50f) else Color(0xFFD8EADF).copy(alpha = 0.85f))
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = "1–3",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(if (isDark) Color(0xFF2D6A4F) else Color(0xFF1B4332))
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = "4+",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // Selected Date
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                    Text(
+                        text = "Selected",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Today
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp))
+                    )
+                    Text(
+                        text = "Today",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Completed Tasks
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF2E7D32))
+                    )
+                    Text(
+                        text = "Completed",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Scheduled Tasks
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.outline)
+                    )
+                    Text(
+                        text = "Scheduled",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
         item {
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
         }
 
         // Overdue Alert Section (visible on past dates or today)
@@ -883,30 +896,12 @@ private fun CalendarDayCell(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
     val completedCount = day.completedCount
-
-    // Completion Heatmap color rules:
-    // 0 completed = transparent / default background
-    // 1-3 completed = very light forest-green/teal tint
-    // 4+ completed = deep, rich forest-green/teal
-    val heatmapBgColor: Color = when {
-        completedCount == 0 -> Color.Transparent
-        completedCount in 1..3 -> {
-            if (isDark) Color(0xFF1B4332).copy(alpha = 0.50f)
-            else Color(0xFFD8EADF).copy(alpha = 0.85f)
-        }
-        else -> { // 4+ completed
-            if (isDark) Color(0xFF2D6A4F)
-            else Color(0xFF1B4332)
-        }
-    }
+    val pendingCount = (day.taskCount - completedCount).coerceAtLeast(0)
 
     val backgroundColor by animateColorAsState(
         when {
             day.isSelected -> MaterialTheme.colorScheme.primary
-            heatmapBgColor != Color.Transparent -> heatmapBgColor
-            day.isToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
             else -> Color.Transparent
         },
         label = "dayCellBg"
@@ -914,16 +909,10 @@ private fun CalendarDayCell(
 
     val textColor = when {
         day.isSelected -> MaterialTheme.colorScheme.onPrimary
-        completedCount >= 4 -> Color.White // Deep forest-green requires high-contrast white text
-        completedCount in 1..3 -> {
-            if (isDark) Color(0xFFB7E4C7) else Color(0xFF0E281D)
-        }
         day.isToday -> MaterialTheme.colorScheme.primary
         !day.isCurrentMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
         else -> MaterialTheme.colorScheme.onSurface
     }
-
-    val isHeatmapActive = completedCount > 0 && !day.isSelected
 
     Box(
         modifier = modifier
@@ -932,10 +921,8 @@ private fun CalendarDayCell(
             .clip(RoundedCornerShape(10.dp))
             .background(backgroundColor)
             .then(
-                if (day.isSelected && completedCount > 0) {
-                    Modifier.border(1.5.dp, MaterialTheme.colorScheme.onPrimary, RoundedCornerShape(10.dp))
-                } else if (day.isToday && !day.isSelected && completedCount == 0) {
-                    Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                if (day.isToday && !day.isSelected) {
+                    Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
                 } else Modifier
             )
             .clickable(onClick = onClick),
@@ -948,43 +935,42 @@ private fun CalendarDayCell(
             Text(
                 text = day.date.dayOfMonth.toString(),
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (day.isSelected || day.isToday || completedCount >= 4) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (day.isSelected || day.isToday) FontWeight.Bold else FontWeight.Normal,
                 color = textColor
             )
 
-            // Category indicator dots (or completion indicator)
+            // Category & status indicator dots
             Row(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier
-                    .height(4.dp)
-                    .padding(top = 2.dp)
+                    .height(5.dp)
+                    .padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 if (day.isSelected) {
-                    repeat(day.taskDots.size.coerceAtMost(3)) {
+                    if (completedCount > 0 || pendingCount > 0) {
                         Box(
                             modifier = Modifier
-                                .size(3.dp)
+                                .size(4.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
-                        )
-                    }
-                } else if (completedCount >= 4) {
-                    // Subtle white dots for high-completion days
-                    repeat(day.taskDots.size.coerceAtMost(3).coerceAtLeast(1)) {
-                        Box(
-                            modifier = Modifier
-                                .size(3.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.8f))
+                                .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f))
                         )
                     }
                 } else {
-                    day.taskDots.forEach { dotColor ->
+                    if (completedCount > 0) {
                         Box(
                             modifier = Modifier
-                                .size(3.5.dp)
+                                .size(4.dp)
                                 .clip(CircleShape)
-                                .background(dotColor)
+                                .background(Color(0xFF2E7D32))
+                        )
+                    }
+                    if (pendingCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.outline)
                         )
                     }
                 }

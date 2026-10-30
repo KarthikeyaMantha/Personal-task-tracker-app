@@ -6,11 +6,12 @@ import android.content.Intent
 import com.personal.daymark.DaymarkApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
  * BroadcastReceiver triggered after device reboot or package update.
- * Restores and reschedules all pending task reminder alarms from Room SQLite.
+ * Restores and reschedules all pending task and habit reminder alarms from Room SQLite.
  */
 class BootCompletedReceiver : BroadcastReceiver() {
 
@@ -41,6 +42,14 @@ class BootCompletedReceiver : BroadcastReceiver() {
                     // If reminder trigger is in the future and task is not completed, reschedule it
                     if (triggerTime > now && !task.isCompleted) {
                         app.container.reminderScheduler.scheduleReminder(task)
+                    }
+                }
+
+                // Reschedule active habit reminders
+                val habits = app.container.habitRepository.getAllHabitsWithLogs().first()
+                for (hwl in habits) {
+                    if (!hwl.habit.isArchived && hwl.habit.reminderTime != null) {
+                        app.container.reminderScheduler.scheduleHabitReminder(hwl.habit)
                     }
                 }
             } finally {

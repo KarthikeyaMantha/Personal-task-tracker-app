@@ -33,7 +33,25 @@ interface HabitRepository {
         categoryId: Long? = null,
         healthMetricType: String? = null,
         targetValue: Int? = null,
-        unit: String? = null
+        unit: String? = null,
+        reminderTime: Int? = null,
+        targetDurationMinutes: Int? = null
+    ): Long = createHabit(name, note, frequency, targetWeekdays, colorHex, categoryId, healthMetricType, targetValue, unit, reminderTime, targetDurationMinutes, "ANYTIME", false)
+
+    suspend fun createHabit(
+        name: String,
+        note: String? = null,
+        frequency: String = "DAILY",
+        targetWeekdays: Int = 127,
+        colorHex: String = "#1B4332",
+        categoryId: Long? = null,
+        healthMetricType: String? = null,
+        targetValue: Int? = null,
+        unit: String? = null,
+        reminderTime: Int? = null,
+        targetDurationMinutes: Int? = null,
+        routineTimeOfDay: String = "ANYTIME",
+        isFrozen: Boolean = false
     ): Long = createHabit(name, note, frequency, targetWeekdays, colorHex, categoryId)
     suspend fun logHealthMetric(
         habitId: Long,
@@ -51,6 +69,8 @@ interface HabitRepository {
     suspend fun setHabitCompleted(habitId: Long, date: Long, isCompleted: Boolean)
     suspend fun setHabitCompletedForDate(habitId: Long, localDate: java.time.LocalDate, isCompleted: Boolean)
     suspend fun toggleHabitCompletion(habitId: Long, localDate: java.time.LocalDate = java.time.LocalDate.now()): Boolean
+    suspend fun toggleHabitFreeze(habitId: Long, localDate: java.time.LocalDate = java.time.LocalDate.now()): Boolean = false
+    suspend fun setHabitFrozen(habitId: Long, isFrozen: Boolean) {}
     fun getActiveHabitsCount(): Flow<Int>
     fun getHabitCompletionsCountInRange(startDateString: String, endDateString: String): Flow<Int>
     fun getAllLogsInRange(startDateString: String, endDateString: String): Flow<List<HabitLogEntity>>
@@ -96,7 +116,39 @@ class HabitRepositoryImpl(
         categoryId: Long?,
         healthMetricType: String?,
         targetValue: Int?,
-        unit: String?
+        unit: String?,
+        reminderTime: Int?,
+        targetDurationMinutes: Int?
+    ): Long = createHabit(
+        name,
+        note,
+        frequency,
+        targetWeekdays,
+        colorHex,
+        categoryId,
+        healthMetricType,
+        targetValue,
+        unit,
+        reminderTime,
+        targetDurationMinutes,
+        "ANYTIME",
+        false
+    )
+
+    override suspend fun createHabit(
+        name: String,
+        note: String?,
+        frequency: String,
+        targetWeekdays: Int,
+        colorHex: String,
+        categoryId: Long?,
+        healthMetricType: String?,
+        targetValue: Int?,
+        unit: String?,
+        reminderTime: Int?,
+        targetDurationMinutes: Int?,
+        routineTimeOfDay: String,
+        isFrozen: Boolean
     ): Long = withContext(ioDispatcher) {
         val habit = HabitEntity(
             name = name,
@@ -107,7 +159,11 @@ class HabitRepositoryImpl(
             categoryId = categoryId,
             healthMetricType = healthMetricType,
             targetValue = targetValue,
-            unit = unit
+            unit = unit,
+            reminderTime = reminderTime,
+            targetDurationMinutes = targetDurationMinutes,
+            routineTimeOfDay = routineTimeOfDay,
+            isFrozen = isFrozen
         )
         habitDao.insertHabit(habit)
     }
@@ -255,6 +311,42 @@ class HabitRepositoryImpl(
         }
         context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         result
+    }
+
+    override suspend fun toggleHabitFreeze(
+        habitId: Long,
+        localDate: java.time.LocalDate
+    ): Boolean = withContext(ioDispatcher) {
+        val dateStr = localDate.toString()
+        val epochDay = localDate.toEpochDay()
+        val existing = habitDao.getLogForDateStringSync(habitId, dateStr)
+        val result = if (existing != null && existing.isFrozen) {
+            if (!existing.isCompleted) {
+                habitDao.deleteHabitLogByDateString(habitId, dateStr)
+                habitDao.deleteHabitLog(habitId, epochDay)
+            } else {
+                habitDao.insertHabitLog(existing.copy(isFrozen = false))
+            }
+            false
+        } else {
+            val newLog = existing?.copy(isFrozen = true) ?: HabitLogEntity(
+                habitId = habitId,
+                date = epochDay,
+                dateString = dateStr,
+                isCompleted = false,
+                isFrozen = true
+            )
+            habitDao.insertHabitLog(newLog)
+            true
+        }
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
+        result
+    }
+
+    override suspend fun setHabitFrozen(habitId: Long, isFrozen: Boolean): Unit = withContext(ioDispatcher) {
+        val habit = habitDao.getAllHabitsList().find { it.id == habitId } ?: return@withContext
+        habitDao.updateHabit(habit.copy(isFrozen = isFrozen))
+        context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
     }
 
     override fun getActiveHabitsCount(): Flow<Int> {

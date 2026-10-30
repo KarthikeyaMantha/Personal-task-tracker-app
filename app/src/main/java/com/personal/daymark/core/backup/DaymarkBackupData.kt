@@ -21,10 +21,10 @@ class CorruptBackupException(message: String, cause: Throwable? = null) : Except
 data class CategoryBackupDto(
     val id: Long,
     val name: String,
-    val colorHex: String,
+    val colorHex: String = "#1B4332",
     val iconName: String? = null,
     val sortOrder: Int = 0,
-    val createdAt: Long
+    val createdAt: Long = 0L
 )
 
 @Serializable
@@ -58,7 +58,7 @@ data class SubtaskBackupDto(
     val title: String,
     val isCompleted: Boolean = false,
     val sortOrder: Int = 0,
-    val createdAt: Long
+    val createdAt: Long = 0L
 )
 
 @Serializable
@@ -71,10 +71,14 @@ data class HabitBackupDto(
     val colorHex: String = "#1B4332",
     val categoryId: Long? = null,
     val isArchived: Boolean = false,
-    val createdAt: Long,
+    val createdAt: Long = 0L,
     val healthMetricType: String? = null,
     val targetValue: Int? = null,
-    val unit: String? = null
+    val unit: String? = null,
+    val reminderTime: Int? = null,
+    val targetDurationMinutes: Int? = null,
+    val routineTimeOfDay: String = "ANYTIME",
+    val isFrozen: Boolean = false
 )
 
 @Serializable
@@ -84,9 +88,10 @@ data class HabitLogBackupDto(
     val date: Long,
     val dateString: String = "",
     val isCompleted: Boolean = true,
-    val loggedAt: Long,
+    val loggedAt: Long = 0L,
     val value: Float? = null,
-    val note: String? = null
+    val note: String? = null,
+    val isFrozen: Boolean = false
 )
 
 @Serializable
@@ -96,7 +101,7 @@ data class FocusSessionBackupDto(
     val durationMinutes: Int,
     val plannedDurationMinutes: Int = 25,
     val sessionType: String = "FOCUS",
-    val startedAt: Long,
+    val startedAt: Long = 0L,
     val completedAt: Long? = null,
     val notes: String? = null
 )
@@ -106,9 +111,9 @@ data class TimeBlockBackupDto(
     val id: Long = 0,
     val title: String,
     val startTime: String,
-    val durationMinutes: Int,
+    val durationMinutes: Int = 0,
     val colorHex: String? = null,
-    val date: String
+    val date: String = ""
 )
 
 @Serializable
@@ -122,8 +127,8 @@ data class TemplateItemBackupDto(
     val id: Long = 0,
     val templateId: Long,
     val title: String,
-    val startTime: String,
-    val durationMinutes: Int,
+    val startTime: String = "",
+    val durationMinutes: Int = 0,
     val isTask: Boolean = true
 )
 
@@ -194,7 +199,11 @@ fun HabitEntity.toDto() = HabitBackupDto(
     createdAt = createdAt,
     healthMetricType = healthMetricType,
     targetValue = targetValue,
-    unit = unit
+    unit = unit,
+    reminderTime = reminderTime,
+    targetDurationMinutes = targetDurationMinutes,
+    routineTimeOfDay = routineTimeOfDay,
+    isFrozen = isFrozen
 )
 fun HabitLogEntity.toDto() = HabitLogBackupDto(
     id = id,
@@ -204,7 +213,8 @@ fun HabitLogEntity.toDto() = HabitLogBackupDto(
     isCompleted = isCompleted,
     loggedAt = loggedAt,
     value = value,
-    note = note
+    note = note,
+    isFrozen = isFrozen
 )
 fun FocusSessionEntity.toDto() = FocusSessionBackupDto(id, taskId, durationMinutes, plannedDurationMinutes, sessionType, startedAt, completedAt, notes)
 fun TimeBlockEntity.toDto() = TimeBlockBackupDto(id, title, startTime, durationMinutes, colorHex, date)
@@ -260,7 +270,11 @@ fun HabitBackupDto.toEntity() = HabitEntity(
     createdAt = createdAt,
     healthMetricType = healthMetricType,
     targetValue = targetValue,
-    unit = unit
+    unit = unit,
+    reminderTime = reminderTime,
+    targetDurationMinutes = targetDurationMinutes,
+    routineTimeOfDay = routineTimeOfDay,
+    isFrozen = isFrozen
 )
 fun HabitLogBackupDto.toEntity() = HabitLogEntity(
     id = id,
@@ -270,7 +284,8 @@ fun HabitLogBackupDto.toEntity() = HabitLogEntity(
     isCompleted = isCompleted,
     loggedAt = loggedAt,
     value = value,
-    note = note
+    note = note,
+    isFrozen = isFrozen
 )
 fun FocusSessionBackupDto.toEntity() = FocusSessionEntity(id, taskId, durationMinutes, plannedDurationMinutes, sessionType, startedAt, completedAt, notes)
 fun TimeBlockBackupDto.toEntity() = TimeBlockEntity(id, title, startTime, durationMinutes, colorHex, date)

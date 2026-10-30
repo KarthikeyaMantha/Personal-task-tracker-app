@@ -17,13 +17,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Warning
+import com.personal.daymark.ui.voice.VoiceInputBottomSheet
+import com.personal.daymark.ui.voice.VoiceInputViewModel
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import com.personal.daymark.data.local.entity.parsedColor
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -81,9 +88,11 @@ import java.util.Calendar
 @Composable
 fun TodayScreen(
     modifier: Modifier = Modifier,
+    onOpenDrawer: (() -> Unit)? = null,
     onNavigateToFocus: (() -> Unit)? = null,
     onNavigateToFocusMode: (() -> Unit)? = null,
-    onNavigateToInsights: (() -> Unit)? = null
+    onNavigateToInsights: (() -> Unit)? = null,
+    onNavigateToHabits: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val appContainer = (context.applicationContext as DaymarkApplication).container
@@ -91,7 +100,8 @@ fun TodayScreen(
     val viewModel: TodayViewModel = viewModel(
         factory = TodayViewModel.provideFactory(
             taskRepository = appContainer.taskRepository,
-            reminderScheduler = appContainer.reminderScheduler
+            reminderScheduler = appContainer.reminderScheduler,
+            habitRepository = appContainer.habitRepository
         )
     )
 
@@ -112,6 +122,8 @@ fun TodayScreen(
     var isFocusOpen by remember { mutableStateOf(false) }
     var isEndOfDayOpen by remember { mutableStateOf(false) }
     var isEndOfDayPromptDismissed by remember { mutableStateOf(false) }
+    var showTopMenu by remember { mutableStateOf(false) }
+    var isVoiceInputOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -157,12 +169,30 @@ fun TodayScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             DaymarkTopAppBar(
-                title = "Daymark",
+                title = "Today",
+                navigationIcon = if (onOpenDrawer != null) {
+                    {
+                        IconButton(onClick = onOpenDrawer) {
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "Open navigation menu",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                } else null,
                 actions = {
-                    IconButton(onClick = { isEndOfDayOpen = true }) {
+                    IconButton(onClick = { isSearchOpen = true }) {
                         Icon(
-                            imageVector = Icons.Outlined.Bedtime,
-                            contentDescription = "End Day Review",
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(onClick = { isVoiceInputOpen = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Voice Action",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -179,21 +209,21 @@ fun TodayScreen(
                         Icon(
                             imageVector = Icons.Outlined.Timer,
                             contentDescription = "Focus Timer",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     IconButton(onClick = { onNavigateToInsights?.invoke() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.TrendingUp,
                             contentDescription = "Insights",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    IconButton(onClick = { isSearchOpen = true }) {
+                    IconButton(onClick = { isEndOfDayOpen = true }) {
                         Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search Tasks",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            imageVector = Icons.Outlined.Bedtime,
+                            contentDescription = "Wrap up today",
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -202,12 +232,12 @@ fun TodayScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 // Greeting and Date Header
                 Text(
                     text = uiState.greeting,
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
@@ -283,63 +313,68 @@ fun TodayScreen(
 
                 // Real-time Progress Card
                 DaymarkProgressCard(
-                    completedCount = uiState.completedTodayCount,
-                    totalCount = uiState.totalTodayAndOverdueCount,
-                    progressRatio = uiState.progressRatio
+                    completedTasksCount = uiState.completedTodayCount,
+                    totalTasksCount = uiState.totalTodayAndOverdueCount,
+                    taskProgressRatio = uiState.progressRatio,
+                    completedHabitsCount = uiState.completedHabitsCount,
+                    totalHabitsCount = uiState.totalHabitsCount,
+                    habitProgressRatio = uiState.habitProgressRatio,
+                    onHabitsClick = onNavigateToHabits
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Focus Deep Work Card
+                // Focus Active Banner (Only shown when a timer session is actively running or paused)
                 val isTimerActive = timerData.state != FocusTimerState.IDLE
                 val isLinkedTimer = isTimerActive && timerData.linkedTaskId != null
 
-                DaymarkCard(
-                    containerColor = if (isLinkedTimer) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (isLinkedTimer) {
-                                if (onNavigateToFocusMode != null) onNavigateToFocusMode()
-                                else if (onNavigateToFocus != null) onNavigateToFocus()
-                                else isFocusOpen = true
-                            } else {
-                                if (onNavigateToFocus != null) onNavigateToFocus() else isFocusOpen = true
-                            }
-                        }
-                ) {
-                    Row(
+                if (isTimerActive) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    DaymarkCard(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .clickable {
+                                if (isLinkedTimer) {
+                                    if (onNavigateToFocusMode != null) onNavigateToFocusMode()
+                                    else if (onNavigateToFocus != null) onNavigateToFocus()
+                                    else isFocusOpen = true
+                                } else {
+                                    if (onNavigateToFocus != null) onNavigateToFocus() else isFocusOpen = true
+                                }
+                            }
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Timer,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isLinkedTimer) "Focus Active: ${timerData.linkedTaskTitle ?: "Deep Work"}" else "Deep Work Focus",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Timer,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
                             )
-                            Text(
-                                text = if (isLinkedTimer) "${timerData.formattedRemainingTime} remaining • Tap to enter Focus Mode"
-                                else "Start a 25-minute Pomodoro session",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (isLinkedTimer) "Focusing: ${timerData.linkedTaskTitle ?: "Deep Work"}" else "Focus Timer Active",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${timerData.formattedRemainingTime} remaining • Tap to open",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Open Timer",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Start Focus",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
                     }
                 }
 
@@ -426,16 +461,51 @@ fun TodayScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "No tasks scheduled for today",
-                                style = MaterialTheme.typography.titleSmall,
+                                text = "All Clear for Today",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Enjoy your free time, or tap + below to add a new task.",
+                                text = "No tasks pending. Relax, or capture what's next:",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                androidx.compose.material3.OutlinedButton(
+                                    onClick = { isVoiceInputOpen = true },
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Mic,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Voice Task", style = MaterialTheme.typography.labelSmall)
+                                }
+
+                                androidx.compose.material3.OutlinedButton(
+                                    onClick = {
+                                        addSheetSessionKey = System.currentTimeMillis()
+                                        isAddSheetOpen = true
+                                    },
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Add Task", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
                         }
                     }
                 } else {
@@ -474,44 +544,6 @@ fun TodayScreen(
                             }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Upcoming Reminders Active Card
-                DaymarkCard(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Upcoming Reminders",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = if (uiState.upcomingRemindersCount > 0)
-                                    "${uiState.upcomingRemindersCount} alarm reminder${if (uiState.upcomingRemindersCount == 1) "" else "s"} scheduled for today"
-                                else
-                                    "No further alarms scheduled for today",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
                 }
 
@@ -663,5 +695,28 @@ fun TodayScreen(
                 onNavigateBack = { isFocusOpen = false }
             )
         }
+    }
+
+    // Voice Input Action Modal Sheet
+    if (isVoiceInputOpen) {
+        val voiceViewModel: VoiceInputViewModel = viewModel(
+            key = "today_voice_input_vm",
+            factory = VoiceInputViewModel.provideFactory(
+                context = context,
+                taskRepository = appContainer.taskRepository,
+                habitRepository = appContainer.habitRepository,
+                categoryRepository = appContainer.categoryRepository,
+                reminderScheduler = appContainer.reminderScheduler
+            )
+        )
+        VoiceInputBottomSheet(
+            viewModel = voiceViewModel,
+            onDismissRequest = { isVoiceInputOpen = false },
+            onActionCompleted = { message ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(message)
+                }
+            }
+        )
     }
 }

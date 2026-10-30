@@ -11,6 +11,7 @@ data class FocusTimerData(
     val sessionStartedAtEpochMillis: Long = 0L,
     val linkedTaskId: Long? = null,
     val linkedTaskTitle: String? = null,
+    val linkedHabitId: Long? = null,
     val completedSessionsCount: Int = 0
 ) {
     val progressFraction: Float

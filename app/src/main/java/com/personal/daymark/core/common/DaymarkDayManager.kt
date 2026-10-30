@@ -43,7 +43,18 @@ object DaymarkDayManager {
             addAction(Intent.ACTION_TIME_CHANGED)
             addAction(Intent.ACTION_TIMEZONE_CHANGED)
         }
-        application.registerReceiver(receiver, filter)
+        try {
+            androidx.core.content.ContextCompat.registerReceiver(
+                application,
+                receiver,
+                filter,
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        } catch (_: Exception) {
+            try {
+                application.registerReceiver(receiver, filter)
+            } catch (_: Exception) {}
+        }
 
         // Midnight coroutine ticker
         scope.launch {

@@ -11,7 +11,8 @@ enum class HabitDayStatus {
     COMPLETED,
     MISSED,
     NOT_SCHEDULED,
-    NOT_YET_DUE
+    NOT_YET_DUE,
+    FROZEN
 }
 
 data class HabitDayHistory(
@@ -64,6 +65,20 @@ object HabitCalculationHelper {
     }
 
     /**
+     * Checks if a habit was marked as frozen (intentional rest day) on a specific date.
+     */
+    fun isFrozenOnDate(logs: List<HabitLogEntity>, date: LocalDate): Boolean {
+        val dateString = toIsoDateString(date)
+        val epochDay = date.toEpochDay()
+        return logs.any { log ->
+            log.isFrozen && (
+                (log.dateString.isNotEmpty() && log.dateString == dateString) ||
+                (log.date == epochDay)
+            )
+        }
+    }
+
+    /**
      * Calculates completions in the last N days (including today) strictly from logs.
      */
     fun calculateCompletionsInWindow(
@@ -99,10 +114,14 @@ object HabitCalculationHelper {
         today: LocalDate
     ): Int {
         val completedToday = isCompletedOnDate(logs, today)
+        val frozenToday = isFrozenOnDate(logs, today) || habit.isFrozen
         var streak = 0
 
         var checkDate = if (completedToday) {
             streak++
+            today.minusDays(1)
+        } else if (frozenToday) {
+            // Today is frozen: streak is active, check back from yesterday
             today.minusDays(1)
         } else {
             today.minusDays(1)
@@ -116,6 +135,8 @@ object HabitCalculationHelper {
             if (isScheduledOnDate(habit, checkDate)) {
                 if (isCompletedOnDate(logs, checkDate)) {
                     streak++
+                } else if (isFrozenOnDate(logs, checkDate) || habit.isFrozen) {
+                    // Frozen rest day: preserves the streak without breaking or resetting!
                 } else {
                     // Encountered an incomplete scheduled day in the past -> streak ends!
                     break
@@ -152,6 +173,8 @@ object HabitCalculationHelper {
                     if (currentRun > maxStreak) {
                         maxStreak = currentRun
                     }
+                } else if (isFrozenOnDate(logs, date) || habit.isFrozen) {
+                    // Frozen rest day preserves current streak run across it
                 } else {
                     currentRun = 0
                 }
@@ -224,9 +247,11 @@ object HabitCalculationHelper {
             val dateString = toIsoDateString(current)
             val isScheduled = isScheduledOnDate(habit, current)
             val isCompleted = isCompletedOnDate(logs, current)
+            val isFrozen = isFrozenOnDate(logs, current) || (habit.isFrozen && !current.isBefore(habitCreationDate))
 
             val status = when {
                 isCompleted -> HabitDayStatus.COMPLETED
+                isFrozen -> HabitDayStatus.FROZEN
                 !isScheduled -> HabitDayStatus.NOT_SCHEDULED
                 current.isBefore(habitCreationDate) -> HabitDayStatus.NOT_SCHEDULED
                 isToday -> HabitDayStatus.NOT_YET_DUE // Today remains "not yet due" until completed

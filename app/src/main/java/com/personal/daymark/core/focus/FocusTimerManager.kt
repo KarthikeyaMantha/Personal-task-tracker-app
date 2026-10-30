@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.core.content.ContextCompat
 import com.personal.daymark.core.notifications.NotificationHelper
 import com.personal.daymark.data.repository.FocusRepository
+import com.personal.daymark.data.repository.HabitRepository
 import com.personal.daymark.data.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ class FocusTimerManager(
     private val context: Context,
     private val focusRepository: FocusRepository,
     private val settingsRepository: SettingsRepository,
+    private val habitRepository: HabitRepository? = null,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 ) {
 
@@ -56,6 +58,7 @@ class FocusTimerManager(
         val startedAt = prefs.getLong(KEY_STARTED_AT, 0L)
         val taskId = if (prefs.contains(KEY_TASK_ID)) prefs.getLong(KEY_TASK_ID, -1L).takeIf { it > 0 } else null
         val taskTitle = prefs.getString(KEY_TASK_TITLE, null)
+        val habitId = if (prefs.contains(KEY_HABIT_ID)) prefs.getLong(KEY_HABIT_ID, -1L).takeIf { it > 0 } else null
         val completedCount = prefs.getInt(KEY_COMPLETED_COUNT, 0)
 
         return FocusTimerData(
@@ -67,6 +70,7 @@ class FocusTimerManager(
             sessionStartedAtEpochMillis = startedAt,
             linkedTaskId = taskId,
             linkedTaskTitle = taskTitle,
+            linkedHabitId = habitId,
             completedSessionsCount = completedCount
         )
     }
@@ -85,12 +89,18 @@ class FocusTimerManager(
                 } else {
                     remove(KEY_TASK_ID)
                 }
+                if (data.linkedHabitId != null) {
+                    putLong(KEY_HABIT_ID, data.linkedHabitId)
+                } else {
+                    remove(KEY_HABIT_ID)
+                }
             }
             .putString(KEY_TASK_TITLE, data.linkedTaskTitle)
             .putInt(KEY_COMPLETED_COUNT, data.completedSessionsCount)
             .apply()
     }
 
+    private val recordingLock = Any()
     private var lastRecordedStartedAt: Long = prefs.getLong(KEY_LAST_RECORDED_STARTED_AT, 0L)
 
     /**
@@ -121,7 +131,8 @@ class FocusTimerManager(
         durationMinutes: Int? = null,
         sessionType: FocusSessionType? = null,
         taskId: Long? = null,
-        taskTitle: String? = null
+        taskTitle: String? = null,
+        habitId: Long? = null
     ) {
         scope.launch {
             val userPrefs = settingsRepository.userPreferencesFlow.first()
@@ -136,7 +147,8 @@ class FocusTimerManager(
             val now = System.currentTimeMillis()
             val targetEnd = FocusTimerEngine.computeTargetEndTime(totalMillis, now)
 
-            val effectiveTaskId = taskId ?: _timerState.value.linkedTaskId
+            val effectiveTaskId = taskId ?: if (habitId == null) _timerState.value.linkedTaskId else null
+            val effectiveHabitId = habitId ?: if (taskId == null) _timerState.value.linkedHabitId else null
             val effectiveTaskTitle = taskTitle ?: _timerState.value.linkedTaskTitle
 
             val newState = FocusTimerData(
@@ -148,6 +160,7 @@ class FocusTimerManager(
                 sessionStartedAtEpochMillis = now,
                 linkedTaskId = effectiveTaskId,
                 linkedTaskTitle = effectiveTaskTitle,
+                linkedHabitId = effectiveHabitId,
                 completedSessionsCount = _timerState.value.completedSessionsCount
             )
 
@@ -218,6 +231,7 @@ class FocusTimerManager(
             sessionStartedAtEpochMillis = 0L,
             linkedTaskId = current.linkedTaskId,
             linkedTaskTitle = current.linkedTaskTitle,
+            linkedHabitId = current.linkedHabitId,
             completedSessionsCount = current.completedSessionsCount
         )
 
@@ -282,14 +296,19 @@ class FocusTimerManager(
      * Completes the current session, writes to Room, posts notification, and advances phase.
      */
     private fun completeSession(completedData: FocusTimerData) {
-        val startedAt = completedData.sessionStartedAtEpochMillis
-        if (startedAt != 0L && startedAt == lastRecordedStartedAt) {
-            // Already recorded this session
-            return
+        val effectiveStartedAt = if (completedData.sessionStartedAtEpochMillis != 0L) {
+            completedData.sessionStartedAtEpochMillis
+        } else {
+            System.currentTimeMillis() - completedData.totalDurationMillis
         }
-        if (startedAt != 0L) {
-            lastRecordedStartedAt = startedAt
-            prefs.edit().putLong(KEY_LAST_RECORDED_STARTED_AT, startedAt).apply()
+
+        synchronized(recordingLock) {
+            if (effectiveStartedAt == lastRecordedStartedAt) {
+                // Already recorded this session
+                return
+            }
+            lastRecordedStartedAt = effectiveStartedAt
+            prefs.edit().putLong(KEY_LAST_RECORDED_STARTED_AT, effectiveStartedAt).apply()
         }
 
         scope.launch {
@@ -299,7 +318,7 @@ class FocusTimerManager(
                 durationMinutes = durationMinutes,
                 plannedDurationMinutes = durationMinutes,
                 sessionType = completedData.sessionType.name,
-                startedAt = completedData.sessionStartedAtEpochMillis,
+                startedAt = effectiveStartedAt,
                 completedAt = System.currentTimeMillis(),
                 notes = if (completedData.sessionType == FocusSessionType.FOCUS) "Completed Focus Session" else "Completed Break"
             )
@@ -316,6 +335,11 @@ class FocusTimerManager(
                 "Ready to focus again? Start your next session."
             }
             NotificationHelper.showFocusCompletionNotification(context, title, msg)
+
+            if (completedData.sessionType == FocusSessionType.FOCUS && completedData.linkedHabitId != null) {
+                habitRepository?.setHabitCompletedForDate(completedData.linkedHabitId, java.time.LocalDate.now(), true)
+                com.personal.daymark.widget.HealthWidgetUpdater.update(context)
+            }
 
             // Advance phase
             val userPrefs = settingsRepository.userPreferencesFlow.first()
@@ -376,6 +400,7 @@ class FocusTimerManager(
         private const val KEY_STARTED_AT = "started_at"
         private const val KEY_TASK_ID = "task_id"
         private const val KEY_TASK_TITLE = "task_title"
+        private const val KEY_HABIT_ID = "habit_id"
         private const val KEY_COMPLETED_COUNT = "completed_count"
         private const val KEY_LAST_RECORDED_STARTED_AT = "last_recorded_started_at"
     }

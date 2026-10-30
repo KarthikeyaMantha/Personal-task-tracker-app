@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.LightMode
@@ -36,6 +37,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -83,6 +85,7 @@ import java.time.LocalDate
 
 @Composable
 fun SettingsScreen(
+    onNavigateBack: (() -> Unit)? = null,
     onNavigateToManageTemplates: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -154,6 +157,17 @@ fun SettingsScreen(
         ) {
             DaymarkTopAppBar(
                 title = "Settings",
+                navigationIcon = if (onNavigateBack != null) {
+                    {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                } else null,
                 centerTitle = false
             )
 

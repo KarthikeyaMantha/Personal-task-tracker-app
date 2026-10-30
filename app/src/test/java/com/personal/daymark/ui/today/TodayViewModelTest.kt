@@ -1,8 +1,12 @@
 package com.personal.daymark.ui.today
 
 import com.personal.daymark.core.common.DateFormatter
+import com.personal.daymark.data.local.entity.HabitEntity
+import com.personal.daymark.data.local.entity.HabitLogEntity
+import com.personal.daymark.data.local.entity.HabitWithLogs
 import com.personal.daymark.data.local.entity.TaskEntity
 import com.personal.daymark.data.local.entity.TaskWithSubtasksAndCategory
+import com.personal.daymark.data.repository.HabitRepository
 import com.personal.daymark.data.repository.TaskRepository
 import com.personal.daymark.ui.screens.today.TodayViewModel
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +29,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TodayViewModelTest {
@@ -91,6 +96,24 @@ class TodayViewModelTest {
         override fun getOverdueTasksCount(nowMillis: Long): Flow<Int> = flowOf(0)
         override fun getTotalTasksCount(): Flow<Int> = flowOf(0)
         override fun getCompletedTasksInRange(startMillis: Long, endMillis: Long): Flow<List<TaskEntity>> = flowOf(emptyList())
+    }
+
+    private class FakeHabitRepository : HabitRepository {
+        val habitsFlow = MutableStateFlow<List<HabitWithLogs>>(emptyList())
+
+        override fun getActiveHabitsWithLogs(): Flow<List<HabitWithLogs>> = habitsFlow.asStateFlow()
+        override fun getAllHabitsWithLogs(): Flow<List<HabitWithLogs>> = habitsFlow.asStateFlow()
+        override fun getHabitWithLogsById(id: Long): Flow<HabitWithLogs?> = flowOf(null)
+        override fun getLogsForHabit(habitId: Long): Flow<List<HabitLogEntity>> = flowOf(emptyList())
+        override suspend fun updateHabit(habit: HabitEntity) {}
+        override suspend fun deleteHabit(habit: HabitEntity) {}
+        override suspend fun deleteHabitById(id: Long) {}
+        override suspend fun setHabitCompleted(habitId: Long, date: Long, isCompleted: Boolean) {}
+        override suspend fun setHabitCompletedForDate(habitId: Long, localDate: LocalDate, isCompleted: Boolean) {}
+        override suspend fun toggleHabitCompletion(habitId: Long, localDate: LocalDate): Boolean = false
+        override fun getActiveHabitsCount(): Flow<Int> = flowOf(0)
+        override fun getHabitCompletionsCountInRange(startDateString: String, endDateString: String): Flow<Int> = flowOf(0)
+        override fun getAllLogsInRange(startDateString: String, endDateString: String): Flow<List<HabitLogEntity>> = flowOf(emptyList())
     }
 
     private lateinit var fakeTaskRepo: FakeTaskRepository
@@ -190,5 +213,55 @@ class TodayViewModelTest {
         advanceUntilIdle()
 
         assertEquals(0, viewModel.uiState.value.todayTasks.size)
+    }
+
+    @Test
+    fun habitMetricsAreCalculatedCorrectlyWhenScheduledAndCompleted() = runTest {
+        val fakeHabitRepo = FakeHabitRepository()
+        val customVm = TodayViewModel(fakeTaskRepo, habitRepository = fakeHabitRepo)
+
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            customVm.uiState.collect()
+        }
+
+        val today = LocalDate.now()
+        val habit1 = HabitEntity(id = 1L, name = "Meditation", frequency = "DAILY", targetWeekdays = 127)
+        val habit2 = HabitEntity(id = 2L, name = "Reading", frequency = "DAILY", targetWeekdays = 127)
+        val log1 = HabitLogEntity(id = 1L, habitId = 1L, date = today.toEpochDay(), dateString = today.toString(), isCompleted = true)
+
+        fakeHabitRepo.habitsFlow.value = listOf(
+            HabitWithLogs(habit = habit1, logs = listOf(log1)),
+            HabitWithLogs(habit = habit2, logs = emptyList())
+        )
+        advanceUntilIdle()
+
+        val state = customVm.uiState.value
+        assertEquals(2, state.totalHabitsCount)
+        assertEquals(1, state.completedHabitsCount)
+        assertEquals(0.5f, state.habitProgressRatio, 0.01f)
+    }
+
+    @Test
+    fun habitsNotScheduledForTodayAreIgnoredInCounts() = runTest {
+        val fakeHabitRepo = FakeHabitRepository()
+        val customVm = TodayViewModel(fakeTaskRepo, habitRepository = fakeHabitRepo)
+
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            customVm.uiState.collect()
+        }
+
+        val today = LocalDate.now()
+        val otherDayBit = if (today.dayOfWeek.value == 1) 2 else 1
+        val unscheduledHabit = HabitEntity(id = 1L, name = "Swimming", frequency = "CUSTOM", targetWeekdays = otherDayBit)
+
+        fakeHabitRepo.habitsFlow.value = listOf(
+            HabitWithLogs(habit = unscheduledHabit, logs = emptyList())
+        )
+        advanceUntilIdle()
+
+        val state = customVm.uiState.value
+        assertEquals(0, state.totalHabitsCount)
+        assertEquals(0, state.completedHabitsCount)
+        assertEquals(0f, state.habitProgressRatio, 0.01f)
     }
 }

@@ -56,6 +56,7 @@ import com.personal.daymark.DaymarkApplication
 import com.personal.daymark.core.focus.FocusSessionType
 import com.personal.daymark.core.focus.FocusTimerEngine
 import com.personal.daymark.core.focus.FocusTimerState
+import androidx.compose.material.icons.outlined.Insights
 import com.personal.daymark.ui.components.DaymarkCard
 import com.personal.daymark.ui.components.DaymarkTopAppBar
 
@@ -63,6 +64,7 @@ import com.personal.daymark.ui.components.DaymarkTopAppBar
 fun FocusScreen(
     onNavigateBack: () -> Unit,
     onNavigateToFocusMode: () -> Unit = {},
+    onNavigateToInsights: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: FocusViewModel = viewModel(
         factory = FocusViewModel.provideFactory(
@@ -96,6 +98,15 @@ fun FocusScreen(
                     }
                 },
                 actions = {
+                    if (onNavigateToInsights != null) {
+                        IconButton(onClick = onNavigateToInsights) {
+                            Icon(
+                                imageVector = Icons.Outlined.Insights,
+                                contentDescription = "Focus Insights",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     IconButton(onClick = { viewModel.skipPhase() }) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,

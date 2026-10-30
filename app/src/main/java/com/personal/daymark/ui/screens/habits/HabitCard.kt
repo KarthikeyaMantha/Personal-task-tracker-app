@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,8 +56,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.personal.daymark.core.common.DateFormatter
 import com.personal.daymark.core.habits.HabitDayHistory
 import com.personal.daymark.core.habits.HabitDayStatus
+import com.personal.daymark.data.local.entity.HabitEntity
 import com.personal.daymark.data.local.entity.parsedColor
 import com.personal.daymark.ui.components.DaymarkCard
 import com.personal.daymark.ui.components.DaymarkTextField
@@ -70,7 +75,9 @@ fun HabitCard(
     onDeleteHabit: () -> Unit,
     modifier: Modifier = Modifier,
     onIncrementWater: (() -> Unit)? = null,
-    onLogHealthMetric: ((Float, String?) -> Unit)? = null
+    onLogHealthMetric: ((Float, String?) -> Unit)? = null,
+    onStartTimer: ((HabitEntity) -> Unit)? = null,
+    onToggleFreezeToday: (() -> Unit)? = null
 ) {
     val habit = habitItem.habit
     val habitColor = habit.parsedColor()
@@ -163,22 +170,58 @@ fun HabitCard(
                         )
                     }
 
-                    // Metadata Badges (Category & Streak)
-                    Row(
+                    // Metadata Badges (Category, Routine, Freeze, Streak, Reminder)
+                    FlowRow(
                         modifier = Modifier.padding(top = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         if (habitItem.category != null) {
                             val catColor = habitItem.category.parsedColor()
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
-                                color = catColor.copy(alpha = 0.15f),
-                                modifier = Modifier.padding(end = 6.dp)
+                                color = catColor.copy(alpha = 0.15f)
                             ) {
                                 Text(
                                     text = habitItem.category.name,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = catColor,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        // Routine Badge
+                        val routineLabel = when (habit.routineTimeOfDay.uppercase()) {
+                            "MORNING" -> "🌅 Morning"
+                            "AFTERNOON" -> "☀️ Afternoon"
+                            "EVENING" -> "🌙 Evening"
+                            else -> null
+                        }
+                        if (routineLabel != null) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                            ) {
+                                Text(
+                                    text = routineLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        // Freeze / Rest Day Badge
+                        if (habitItem.isFrozenToday) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFFE3F2FD)
+                            ) {
+                                Text(
+                                    text = "❄️ Rest Day",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = Color(0xFF1565C0),
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
@@ -191,14 +234,29 @@ fun HabitCard(
                             color = if (habitItem.currentStreak > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Spacer(modifier = Modifier.width(8.dp))
-
                         // 7d consistency
                         Text(
                             text = "7d: ${habitItem.completionsLast7Days}/7",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
+                        if (habit.reminderTime != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Notifications,
+                                    contentDescription = "Reminder",
+                                    tint = habitColor,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = DateFormatter.formatTime(habit.reminderTime),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    color = habitColor
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -224,6 +282,16 @@ fun HabitCard(
                                 onEditHabit()
                             }
                         )
+                        if (onToggleFreezeToday != null) {
+                            DropdownMenuItem(
+                                text = { Text(if (habitItem.isFrozenToday) "Unfreeze Today" else "Freeze for Today (Rest Day)") },
+                                leadingIcon = { Text("❄️") },
+                                onClick = {
+                                    isMenuExpanded = false
+                                    onToggleFreezeToday()
+                                }
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text("Delete Habit", color = MaterialTheme.colorScheme.error) },
                             leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
@@ -244,6 +312,56 @@ fun HabitCard(
                     onIncrementWater = onIncrementWater,
                     onLogHealthMetric = onLogHealthMetric
                 )
+            }
+
+            // Duration Timer Action / Completion Banner
+            if (habit.targetDurationMinutes != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                if (!habitItem.isCompletedToday) {
+                    OutlinedButton(
+                        onClick = { onStartTimer?.invoke(habit) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(38.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Timer,
+                            contentDescription = "Start Timer",
+                            modifier = Modifier.size(16.dp),
+                            tint = habitColor
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Start ${habit.targetDurationMinutes}m Focus Timer",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = habitColor
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(habitColor.copy(alpha = 0.12f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Completed",
+                            modifier = Modifier.size(16.dp),
+                            tint = habitColor
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "${habit.targetDurationMinutes}m focus session complete today",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = habitColor
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -348,6 +466,23 @@ private fun HabitDayCell(
                             .size(4.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f))
+                    )
+                }
+            }
+            HabitDayStatus.FROZEN -> {
+                // Frozen rest day: cyan/ice-blue badge with snowflake/freeze styling (streak preserved)
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE3F2FD))
+                        .border(1.dp, Color(0xFF64B5F6), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "❄",
+                        fontSize = 9.sp,
+                        color = Color(0xFF1976D2)
                     )
                 }
             }

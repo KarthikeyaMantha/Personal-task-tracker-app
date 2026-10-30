@@ -25,7 +25,10 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
+import com.personal.daymark.ui.voice.VoiceInputBottomSheet
+import com.personal.daymark.ui.voice.VoiceInputViewModel
 import com.personal.daymark.data.local.entity.parsedColor
 import com.personal.daymark.ui.screens.search.SearchScreen
 import androidx.compose.material3.AlertDialog
@@ -50,7 +53,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -92,6 +97,7 @@ fun TasksScreen(
 
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     var selectedTaskToEdit by remember { mutableStateOf<TaskWithSubtasksAndCategory?>(null) }
     var editSheetSessionKey by remember { mutableLongStateOf(0L) }
@@ -103,6 +109,7 @@ fun TasksScreen(
     var isSearchOpen by remember { mutableStateOf(false) }
     var isSearchExpanded by remember { mutableStateOf(false) }
     var isSortMenuExpanded by remember { mutableStateOf(false) }
+    var isVoiceInputOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(targetTaskId, uiState.tasks) {
         if (targetTaskId != null && targetTaskId > 0) {
@@ -163,7 +170,15 @@ fun TasksScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search Tasks",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    IconButton(onClick = { isVoiceInputOpen = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Voice Action",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -172,7 +187,7 @@ fun TasksScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Sort,
                                 contentDescription = "Sort Options",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
@@ -587,6 +602,29 @@ fun TasksScreen(
                 isSearchOpen = false
                 selectedTaskToEdit = task
                 editSheetSessionKey = System.currentTimeMillis()
+            }
+        )
+    }
+
+    // Voice Input Action Modal Sheet
+    if (isVoiceInputOpen) {
+        val voiceViewModel: VoiceInputViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+            key = "tasks_voice_input_vm",
+            factory = VoiceInputViewModel.provideFactory(
+                context = context,
+                taskRepository = appContainer.taskRepository,
+                habitRepository = appContainer.habitRepository,
+                categoryRepository = appContainer.categoryRepository,
+                reminderScheduler = appContainer.reminderScheduler
+            )
+        )
+        VoiceInputBottomSheet(
+            viewModel = voiceViewModel,
+            onDismissRequest = { isVoiceInputOpen = false },
+            onActionCompleted = { message ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(message)
+                }
             }
         )
     }

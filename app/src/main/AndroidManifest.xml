@@ -15,6 +15,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
+    <!-- Voice Input Permission for On-Device Speech Recognition -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <application
         android:name=".DaymarkApplication"
         android:allowBackup="true"
@@ -44,6 +47,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Habit Reminder Receiver: Triggers notification when habit alarm fires -->
+        <receiver
+            android:name=".core.notifications.HabitReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.personal.daymark.ACTION_HABIT_REMINDER" />
+            </intent-filter>
+        </receiver>
+
         <!-- Notification Action Receiver: Handles Snooze and Mark Complete directly from notification -->
         <receiver
             android:name=".core.notifications.NotificationActionReceiver"
@@ -51,6 +63,7 @@
             <intent-filter>
                 <action android:name="com.personal.daymark.ACTION_COMPLETE_TASK" />
                 <action android:name="com.personal.daymark.ACTION_SNOOZE_TASK" />
+                <action android:name="com.personal.daymark.ACTION_COMPLETE_HABIT" />
             </intent-filter>
         </receiver>
 

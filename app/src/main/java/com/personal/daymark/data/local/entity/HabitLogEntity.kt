@@ -38,5 +38,7 @@ data class HabitLogEntity(
     @ColumnInfo(name = "value")
     val value: Float? = null, // e.g. 5.0 (glasses), 7.5 (hours), 4.0 (mood 1-5)
     @ColumnInfo(name = "note")
-    val note: String? = null // optional note for mood or health log
+    val note: String? = null, // optional note for mood or health log
+    @ColumnInfo(name = "is_frozen", defaultValue = "0")
+    val isFrozen: Boolean = false // Freeze rest day indicator
 )

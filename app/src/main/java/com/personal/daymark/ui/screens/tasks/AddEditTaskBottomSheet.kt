@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,7 +29,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.personal.daymark.data.local.entity.parsedColor
 import androidx.compose.material3.Icon
@@ -38,6 +43,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -75,6 +81,8 @@ fun AddEditTaskBottomSheet(
     val focusManager = LocalFocusManager.current
     val context = androidx.compose.ui.platform.LocalContext.current
     var isManageCategoriesOpen by remember { mutableStateOf(false) }
+    var showMoreOptions by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     val todayMillis = remember {
         Calendar.getInstance().apply {
@@ -179,187 +187,7 @@ fun AddEditTaskBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Task Description / Notes (Optional)
-            DaymarkTextField(
-                value = uiState.description,
-                onValueChange = viewModel::onDescriptionChanged,
-                placeholder = "Notes or extra details (optional)",
-                singleLine = false,
-                maxLines = 3
-            )
-
-            // Subtasks / Checklist
-            Spacer(modifier = Modifier.height(18.dp))
-            val completedSubtasksCount = uiState.subtasks.count { it.isCompleted }
-            val totalSubtasksCount = uiState.subtasks.size
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (totalSubtasksCount > 0) "Checklist ($completedSubtasksCount/$totalSubtasksCount)" else "Checklist",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Subtask items list
-            if (uiState.subtasks.isNotEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    uiState.subtasks.forEachIndexed { index, subtask ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(if (subtask.isCompleted) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                    .border(1.5.dp, if (subtask.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
-                                    .clickable { viewModel.toggleSubtask(index) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (subtask.isCompleted) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Completed",
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(10.dp))
-
-                            Text(
-                                text = subtask.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                textDecoration = if (subtask.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else androidx.compose.ui.text.style.TextDecoration.None,
-                                color = if (subtask.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            IconButton(
-                                onClick = { viewModel.deleteSubtask(index) },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Remove subtask",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Quick entry row to add subtask
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    DaymarkTextField(
-                        value = uiState.newSubtaskInput,
-                        onValueChange = viewModel::onNewSubtaskInputChanged,
-                        placeholder = "Add a checklist item...",
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = {
-                            viewModel.addSubtask()
-                        })
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = viewModel::addSubtask,
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add subtask",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Priority Selector
-            Text(
-                text = "Priority",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf(
-                    0 to "None",
-                    1 to "Low",
-                    2 to "Medium",
-                    3 to "High",
-                    4 to "Urgent"
-                ).forEach { (priorityVal, label) ->
-                    val isSelected = uiState.priority == priorityVal
-                    val priorityColor = getPriorityColor(priorityVal)
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceContainerLow
-                            )
-                            .clickable { viewModel.onPrioritySelected(priorityVal) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (priorityColor != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(priorityColor)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                            }
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Quick Due Date Selector
             Text(
@@ -393,8 +221,8 @@ fun AddEditTaskBottomSheet(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceContainerLow
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceContainerHigh
                             )
                             .clickable { viewModel.onDueDateSelected(dateMillis) }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -405,7 +233,7 @@ fun AddEditTaskBottomSheet(
                                 Icon(
                                     imageVector = Icons.Default.DateRange,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -413,7 +241,7 @@ fun AddEditTaskBottomSheet(
                             Text(
                                 text = label,
                                 style = MaterialTheme.typography.labelMedium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -425,8 +253,8 @@ fun AddEditTaskBottomSheet(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            if (isCustomDate) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceContainerLow
+                            if (isCustomDate) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceContainerHigh
                         )
                         .clickable {
                             val calendar = Calendar.getInstance().apply {
@@ -458,14 +286,14 @@ fun AddEditTaskBottomSheet(
                         Icon(
                             imageVector = Icons.Default.DateRange,
                             contentDescription = null,
-                            tint = if (isCustomDate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isCustomDate) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = customDateLabel,
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (isCustomDate) MaterialTheme.colorScheme.onPrimaryContainer
+                            color = if (isCustomDate) MaterialTheme.colorScheme.onPrimary
                             else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -517,8 +345,8 @@ fun AddEditTaskBottomSheet(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceContainerLow
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceContainerHigh
                             )
                             .clickable {
                                 if (uiState.dueDate == null && timeMins != null) {
@@ -533,7 +361,7 @@ fun AddEditTaskBottomSheet(
                         Text(
                             text = label,
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary
                             else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -544,8 +372,8 @@ fun AddEditTaskBottomSheet(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            if (isCustomTime) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceContainerLow
+                            if (isCustomTime) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceContainerHigh
                         )
                         .clickable {
                             val initialHours = (uiState.dueTimeMinutes ?: 540) / 60
@@ -569,7 +397,7 @@ fun AddEditTaskBottomSheet(
                     Text(
                         text = if (isCustomTime) customTimeLabel else "Pick Time...",
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (isCustomTime) MaterialTheme.colorScheme.onPrimaryContainer
+                        color = if (isCustomTime) MaterialTheme.colorScheme.onPrimary
                         else MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -624,8 +452,8 @@ fun AddEditTaskBottomSheet(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceContainerLow
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceContainerHigh
                             )
                             .clickable {
                                 if (freq == null) {
@@ -665,7 +493,7 @@ fun AddEditTaskBottomSheet(
                         Text(
                             text = label,
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary
                             else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -696,7 +524,7 @@ fun AddEditTaskBottomSheet(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(
                                     if (isDaySelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceContainerHighest
+                                    else MaterialTheme.colorScheme.surfaceContainerHigh
                                 )
                                 .clickable {
                                     val currentList = uiState.recurrenceRule?.daysOfWeek.orEmpty().toMutableList()
@@ -743,6 +571,213 @@ fun AddEditTaskBottomSheet(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Primary Fast Save Action (accessible immediately without scrolling)
+            DaymarkButton(
+                text = "Save",
+                onClick = { if (!uiState.isSaving) viewModel.saveTask() },
+                enabled = !uiState.isSaving,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // More Options Toggle (Never expanded automatically for new tasks)
+            TextButton(
+                onClick = { showMoreOptions = !showMoreOptions },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+            ) {
+                Icon(
+                    imageVector = if (showMoreOptions) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (showMoreOptions) "Fewer options" else "More options (notes, checklist, priority, medicine)",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)
+                )
+            }
+
+            if (showMoreOptions) {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Task Description / Notes (Optional)
+                DaymarkTextField(
+                    value = uiState.description,
+                    onValueChange = viewModel::onDescriptionChanged,
+                    placeholder = "Notes or extra details (optional)",
+                    singleLine = false,
+                    maxLines = 3
+                )
+
+                // Subtasks / Checklist
+                Spacer(modifier = Modifier.height(16.dp))
+                val completedSubtasksCount = uiState.subtasks.count { it.isCompleted }
+                val totalSubtasksCount = uiState.subtasks.size
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (totalSubtasksCount > 0) "Checklist ($completedSubtasksCount/$totalSubtasksCount)" else "Checklist",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Subtask items list
+                if (uiState.subtasks.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        uiState.subtasks.forEachIndexed { index, subtask ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(if (subtask.isCompleted) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                        .border(1.5.dp, if (subtask.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
+                                        .clickable { viewModel.toggleSubtask(index) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (subtask.isCompleted) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Completed",
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Text(
+                                    text = subtask.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textDecoration = if (subtask.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else androidx.compose.ui.text.style.TextDecoration.None,
+                                    color = if (subtask.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                IconButton(
+                                    onClick = { viewModel.deleteSubtask(index) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove subtask",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Quick entry row to add subtask
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        DaymarkTextField(
+                            value = uiState.newSubtaskInput,
+                            onValueChange = viewModel::onNewSubtaskInputChanged,
+                            placeholder = "Add a checklist item...",
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                viewModel.addSubtask()
+                            })
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = viewModel::addSubtask,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add subtask",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Priority Selector
+                Text(
+                    text = "Priority",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        0 to "None",
+                        1 to "▼ Low",
+                        2 to "■ Medium",
+                        3 to "▲ High",
+                        4 to "! Urgent"
+                    ).forEach { (priorityVal, label) ->
+                        val isSelected = uiState.priority == priorityVal
+                        val priorityColor = getPriorityColor(priorityVal)
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceContainerHigh
+                                )
+                                .clickable { viewModel.onPrioritySelected(priorityVal) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    ),
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else priorityColor ?: MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
 
             // Medicine & Supplement Tracking Toggle
             Spacer(modifier = Modifier.height(18.dp))
@@ -908,8 +943,8 @@ fun AddEditTaskBottomSheet(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            if (isNoneSelected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceContainerLow
+                            if (isNoneSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceContainerHigh
                         )
                         .clickable { viewModel.onCategorySelected(null) }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
@@ -917,7 +952,7 @@ fun AddEditTaskBottomSheet(
                     Text(
                         text = "General",
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (isNoneSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                        color = if (isNoneSelected) MaterialTheme.colorScheme.onPrimary
                         else MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -928,8 +963,8 @@ fun AddEditTaskBottomSheet(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceContainerLow
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceContainerHigh
                             )
                             .clickable { viewModel.onCategorySelected(cat.id) }
                             .padding(horizontal = 14.dp, vertical = 8.dp)
@@ -939,13 +974,13 @@ fun AddEditTaskBottomSheet(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(cat.parsedColor())
+                                    .background(if (isSelected) MaterialTheme.colorScheme.onPrimary else cat.parsedColor())
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = cat.name,
                                 style = MaterialTheme.typography.labelMedium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -955,39 +990,79 @@ fun AddEditTaskBottomSheet(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Save Action
-            DaymarkButton(
-                text = if (uiState.taskId == null || uiState.taskId == 0L) "Create Task" else "Save Changes",
-                onClick = { if (!uiState.isSaving) viewModel.saveTask() },
-                enabled = !uiState.isSaving,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            if (uiState.taskId != null && uiState.taskId != 0L && onStartFocus != null) {
-                Spacer(modifier = Modifier.height(10.dp))
-                androidx.compose.material3.OutlinedButton(
-                    onClick = {
-                        onStartFocus(uiState.taskId!!, uiState.title)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
+            // Save & Delete Actions
+            val isExistingTask = uiState.taskId != null && uiState.taskId != 0L
+            if (isExistingTask) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Timer,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Start Focus on this Task",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { showDeleteConfirmDialog = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Task",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Delete", fontWeight = FontWeight.SemiBold)
+                    }
+
+                    DaymarkButton(
+                        text = "Save",
+                        onClick = { if (!uiState.isSaving) viewModel.saveTask() },
+                        enabled = !uiState.isSaving,
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .height(52.dp)
                     )
                 }
+            } else {
+                DaymarkButton(
+                    text = "Save",
+                    onClick = { if (!uiState.isSaving) viewModel.saveTask() },
+                    enabled = !uiState.isSaving,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
+
+        if (uiState.taskId != null && uiState.taskId != 0L && onStartFocus != null) {
+            Spacer(modifier = Modifier.height(10.dp))
+            androidx.compose.material3.OutlinedButton(
+                onClick = {
+                    onStartFocus(uiState.taskId!!, uiState.title)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Timer,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Start Focus on this Task",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
     }
 
     if (uiState.showRecurringEditDialog) {
@@ -1011,6 +1086,39 @@ fun AddEditTaskBottomSheet(
                     onClick = { viewModel.saveTask(RecurringEditMode.THIS_INSTANCE_ONLY) }
                 ) {
                     Text("This task only")
+                }
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = {
+                Text(text = "Delete Task")
+            },
+            text = {
+                Text(text = "Are you sure you want to permanently delete \"${uiState.title.ifBlank { "this task" }}\"?")
+            },
+            confirmButton = {
+                androidx.compose.material3.Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        viewModel.deleteCurrentTask()
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { showDeleteConfirmDialog = false }
+                ) {
+                    Text("Cancel")
                 }
             }
         )

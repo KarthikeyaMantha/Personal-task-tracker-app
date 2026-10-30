@@ -4,16 +4,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.personal.daymark.core.common.DateFormatter
+import com.personal.daymark.core.habits.HabitCalculationHelper
 import com.personal.daymark.data.local.entity.TaskWithSubtasksAndCategory
+import com.personal.daymark.data.repository.HabitRepository
 import com.personal.daymark.data.repository.TaskRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 data class TodayUiState(
     val greeting: String = "",
@@ -23,6 +27,9 @@ data class TodayUiState(
     val completedTodayCount: Int = 0,
     val totalTodayAndOverdueCount: Int = 0,
     val progressRatio: Float = 0f,
+    val completedHabitsCount: Int = 0,
+    val totalHabitsCount: Int = 0,
+    val habitProgressRatio: Float = 0f,
     val upcomingRemindersCount: Int = 0,
     val isLoading: Boolean = false
 )
@@ -33,7 +40,8 @@ sealed interface TodayEvent {
 
 class TodayViewModel(
     private val taskRepository: TaskRepository,
-    private val reminderScheduler: com.personal.daymark.core.notifications.ReminderScheduler? = null
+    private val reminderScheduler: com.personal.daymark.core.notifications.ReminderScheduler? = null,
+    private val habitRepository: HabitRepository? = null
 ) : ViewModel() {
 
     private val _eventChannel = Channel<TodayEvent>(Channel.BUFFERED)
@@ -43,8 +51,9 @@ class TodayViewModel(
 
     val uiState: StateFlow<TodayUiState> = combine(
         taskRepository.getAllTasksWithDetails(),
+        habitRepository?.getActiveHabitsWithLogs() ?: flowOf(emptyList()),
         com.personal.daymark.core.common.DaymarkDayManager.dayEpoch
-    ) { allTasks, _ ->
+    ) { allTasks, habitsWithLogs, _ ->
             val now = System.currentTimeMillis()
             val startOfToday = DateFormatter.getStartOfTodayMillis()
             val endOfToday = DateFormatter.getEndOfTodayMillis()
@@ -85,6 +94,20 @@ class TodayViewModel(
                 0f
             }
 
+            val todayDate = LocalDate.now()
+            val scheduledHabits = habitsWithLogs.filter {
+                HabitCalculationHelper.isScheduledOnDate(it.habit, todayDate)
+            }
+            val totalHabits = scheduledHabits.size
+            val completedHabits = scheduledHabits.count {
+                HabitCalculationHelper.isCompletedOnDate(it.logs, todayDate)
+            }
+            val habitRatio = if (totalHabits > 0) {
+                completedHabits.toFloat() / totalHabits.toFloat()
+            } else {
+                0f
+            }
+
             val upcomingReminders = todayTasks.count { item ->
                 if (item.task.isCompleted || item.task.dueDate == null) false
                 else {
@@ -104,6 +127,9 @@ class TodayViewModel(
                 completedTodayCount = completedToday,
                 totalTodayAndOverdueCount = totalRelevant,
                 progressRatio = ratio,
+                completedHabitsCount = completedHabits,
+                totalHabitsCount = totalHabits,
+                habitProgressRatio = habitRatio,
                 upcomingRemindersCount = upcomingReminders,
                 isLoading = false
             )
@@ -222,12 +248,13 @@ class TodayViewModel(
     companion object {
         fun provideFactory(
             taskRepository: TaskRepository,
-            reminderScheduler: com.personal.daymark.core.notifications.ReminderScheduler? = null
+            reminderScheduler: com.personal.daymark.core.notifications.ReminderScheduler? = null,
+            habitRepository: HabitRepository? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return TodayViewModel(taskRepository, reminderScheduler) as T
+                    return TodayViewModel(taskRepository, reminderScheduler, habitRepository) as T
                 }
             }
     }

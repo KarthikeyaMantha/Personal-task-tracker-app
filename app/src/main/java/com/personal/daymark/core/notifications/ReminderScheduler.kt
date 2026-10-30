@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.personal.daymark.data.local.entity.HabitEntity
 import com.personal.daymark.data.local.entity.TaskEntity
 import java.util.Calendar
 
@@ -15,6 +16,8 @@ interface ReminderScheduler {
     fun scheduleSnooze(taskId: Long, title: String, snoozeTimeMillis: Long)
     fun cancelReminder(taskId: Long)
     fun canScheduleExactAlarms(): Boolean
+    fun scheduleHabitReminder(habit: HabitEntity)
+    fun cancelHabitReminder(habitId: Long)
 }
 
 class AlarmManagerReminderScheduler(
@@ -107,6 +110,48 @@ class AlarmManagerReminderScheduler(
         }
     }
 
+    override fun scheduleHabitReminder(habit: HabitEntity) {
+        if (habit.isArchived || habit.reminderTime == null) {
+            cancelHabitReminder(habit.id)
+            return
+        }
+
+        val triggerTime = calculateNextHabitTriggerMillis(habit) ?: return
+
+        val intent = Intent(context, HabitReminderReceiver::class.java).apply {
+            action = HabitReminderReceiver.ACTION_HABIT_REMINDER
+            putExtra(HabitReminderReceiver.EXTRA_HABIT_ID, habit.id)
+            putExtra(HabitReminderReceiver.EXTRA_HABIT_NAME, habit.name)
+        }
+
+        val requestCode = (100_000_000L + habit.id).toInt()
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        scheduleAlarm(triggerTime, pendingIntent)
+    }
+
+    override fun cancelHabitReminder(habitId: Long) {
+        val intent = Intent(context, HabitReminderReceiver::class.java).apply {
+            action = HabitReminderReceiver.ACTION_HABIT_REMINDER
+        }
+        val requestCode = (100_000_000L + habitId).toInt()
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (pendingIntent != null) {
+            alarmManager.cancel(pendingIntent)
+            pendingIntent.cancel()
+        }
+    }
+
     private fun scheduleAlarm(triggerTimeMillis: Long, pendingIntent: PendingIntent) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -167,6 +212,43 @@ class AlarmManagerReminderScheduler(
                 }
             }
             return calendar.timeInMillis
+        }
+
+        fun calculateNextHabitTriggerMillis(habit: HabitEntity, nowMillis: Long = System.currentTimeMillis()): Long? {
+            val reminderMinutes = habit.reminderTime ?: return null
+            val targetWeekdays = habit.targetWeekdays
+            val reminderHour = reminderMinutes / 60
+            val reminderMinute = reminderMinutes % 60
+
+            val now = Calendar.getInstance().apply { timeInMillis = nowMillis }
+
+            for (dayOffset in 0..7) {
+                val candidate = (now.clone() as Calendar).apply {
+                    add(Calendar.DAY_OF_YEAR, dayOffset)
+                    set(Calendar.HOUR_OF_DAY, reminderHour)
+                    set(Calendar.MINUTE, reminderMinute)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+
+                val dayOfWeekValue = when (candidate.get(Calendar.DAY_OF_WEEK)) {
+                    Calendar.MONDAY -> 1
+                    Calendar.TUESDAY -> 2
+                    Calendar.WEDNESDAY -> 3
+                    Calendar.THURSDAY -> 4
+                    Calendar.FRIDAY -> 5
+                    Calendar.SATURDAY -> 6
+                    Calendar.SUNDAY -> 7
+                    else -> 1
+                }
+                val bit = 1 shl (dayOfWeekValue - 1)
+                val isScheduled = (habit.frequency.equals("DAILY", ignoreCase = true) && targetWeekdays == 127) || ((targetWeekdays and bit) != 0)
+
+                if (isScheduled && candidate.timeInMillis > nowMillis) {
+                    return candidate.timeInMillis
+                }
+            }
+            return null
         }
     }
 }

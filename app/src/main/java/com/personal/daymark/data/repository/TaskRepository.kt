@@ -110,7 +110,16 @@ class TaskRepositoryImpl(
     }
 
     override suspend fun updateTask(task: TaskEntity): Unit = withContext(ioDispatcher) {
-        taskDao.updateTask(task.copy(updatedAt = System.currentTimeMillis()))
+        val existing = taskDao.getTaskById(task.id)
+        val taskToSave = if (existing != null) {
+            task.copy(
+                createdAt = existing.createdAt,
+                updatedAt = System.currentTimeMillis()
+            )
+        } else {
+            task.copy(updatedAt = System.currentTimeMillis())
+        }
+        taskDao.updateTask(taskToSave)
         context?.let { com.personal.daymark.widget.HealthWidgetUpdater.update(it) }
         Unit
     }

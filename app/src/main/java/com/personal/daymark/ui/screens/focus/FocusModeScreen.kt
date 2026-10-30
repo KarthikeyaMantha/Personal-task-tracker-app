@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -66,6 +67,7 @@ import com.personal.daymark.core.focus.FocusTimerState
 @Composable
 fun FocusModeScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToInsights: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     focusTimerManager: FocusTimerManager = (LocalContext.current.applicationContext as DaymarkApplication).appContainer.focusTimerManager
 ) {
@@ -103,7 +105,7 @@ fun FocusModeScreen(
             .navigationBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Top Minimize/Back Action
+        // Top Minimize/Back Action & Insights / Status
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -122,24 +124,40 @@ fun FocusModeScreen(
                 )
             }
 
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ) {
-                Text(
-                    text = when (timerData.state) {
-                        FocusTimerState.PAUSED -> "PAUSED"
-                        FocusTimerState.RUNNING -> "DEEP WORK"
-                        FocusTimerState.COMPLETED -> "SESSION COMPLETED"
-                        FocusTimerState.IDLE -> "READY"
-                    },
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onNavigateToInsights != null) {
+                    IconButton(
+                        onClick = onNavigateToInsights,
+                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Insights,
+                            contentDescription = "Insights",
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        text = when (timerData.state) {
+                            FocusTimerState.PAUSED -> "PAUSED"
+                            FocusTimerState.RUNNING -> "DEEP WORK"
+                            FocusTimerState.COMPLETED -> "SESSION COMPLETED"
+                            FocusTimerState.IDLE -> "READY"
+                        },
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.5.sp
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
             }
         }
 

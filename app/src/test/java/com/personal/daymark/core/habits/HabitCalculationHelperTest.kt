@@ -190,4 +190,35 @@ class HabitCalculationHelperTest {
         assertEquals(7, last7)
         assertEquals(11, last30)
     }
+
+    @Test
+    fun streakCalculation_frozenDayPreservesStreakAcrossRestDay() {
+        val today = LocalDate.of(2026, 10, 26)
+        val createdMillis = today.minusDays(10).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+        val dailyHabit = HabitEntity(
+            id = 1L,
+            name = "Morning Yoga",
+            frequency = "DAILY",
+            targetWeekdays = 127,
+            createdAt = createdMillis
+        )
+
+        // Today (d) completed
+        // Yesterday (d-1) was FROZEN (rest day / sick)
+        // Day before yesterday (d-2) and (d-3) were completed
+        val logs = listOf(
+            HabitLogEntity(id = 1L, habitId = 1L, date = today.toEpochDay(), dateString = today.toString(), isCompleted = true),
+            HabitLogEntity(id = 2L, habitId = 1L, date = today.minusDays(1).toEpochDay(), dateString = today.minusDays(1).toString(), isCompleted = false, isFrozen = true),
+            HabitLogEntity(id = 3L, habitId = 1L, date = today.minusDays(2).toEpochDay(), dateString = today.minusDays(2).toString(), isCompleted = true),
+            HabitLogEntity(id = 4L, habitId = 1L, date = today.minusDays(3).toEpochDay(), dateString = today.minusDays(3).toString(), isCompleted = true)
+        )
+
+        val streak = HabitCalculationHelper.calculateCurrentStreak(dailyHabit, logs, today)
+        assertEquals("Frozen day must preserve streak across intentional rest day", 3, streak)
+
+        val history = HabitCalculationHelper.buildHistoryDays(dailyHabit, logs, today, daysCount = 4)
+        val yesterdayHistory = history.find { it.date == today.minusDays(1) }
+        assertEquals(HabitDayStatus.FROZEN, yesterdayHistory?.status)
+    }
 }

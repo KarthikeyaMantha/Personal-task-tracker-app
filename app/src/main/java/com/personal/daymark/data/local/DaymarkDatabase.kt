@@ -33,7 +33,7 @@ import com.personal.daymark.data.local.entity.TimeBlockEntity
         DayTemplateEntity::class,
         TemplateItemEntity::class
     ],
-    version = 6,
+    version = 8,
     exportSchema = false
 )
 abstract class DaymarkDatabase : RoomDatabase() {
@@ -135,6 +135,21 @@ abstract class DaymarkDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN reminder_time INTEGER")
+                db.execSQL("ALTER TABLE habits ADD COLUMN target_duration_minutes INTEGER")
+            }
+        }
+
+        val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN routine_time_of_day TEXT NOT NULL DEFAULT 'ANYTIME'")
+                db.execSQL("ALTER TABLE habits ADD COLUMN is_frozen INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE habit_logs ADD COLUMN is_frozen INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         @Volatile
         private var INSTANCE: DaymarkDatabase? = null
 
@@ -161,7 +176,7 @@ abstract class DaymarkDatabase : RoomDatabase() {
                         db.execSQL("INSERT OR IGNORE INTO categories (name, color_hex, sort_order, created_at) VALUES ('Other', '#6B7280', 4, $now)")
                     }
                 })
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .build()
         }
     }
