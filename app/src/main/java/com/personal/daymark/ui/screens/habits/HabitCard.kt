@@ -27,10 +27,20 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.outlined.AcUnit
+import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.SentimentDissatisfied
+import androidx.compose.material.icons.outlined.SentimentNeutral
+import androidx.compose.material.icons.outlined.SentimentSatisfied
+import androidx.compose.material.icons.outlined.SentimentVeryDissatisfied
+import androidx.compose.material.icons.outlined.SentimentVerySatisfied
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -192,23 +202,34 @@ fun HabitCard(
                         }
 
                         // Routine Badge
-                        val routineLabel = when (habit.routineTimeOfDay.uppercase()) {
-                            "MORNING" -> "🌅 Morning"
-                            "AFTERNOON" -> "☀️ Afternoon"
-                            "EVENING" -> "🌙 Evening"
+                        val routineInfo = when (habit.routineTimeOfDay.uppercase()) {
+                            "MORNING" -> "Morning" to Icons.Outlined.WbSunny
+                            "AFTERNOON" -> "Afternoon" to Icons.Outlined.LightMode
+                            "EVENING" -> "Evening" to Icons.Outlined.Bedtime
                             else -> null
                         }
-                        if (routineLabel != null) {
+                        if (routineInfo != null) {
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
                                 color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
                             ) {
-                                Text(
-                                    text = routineLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                                ) {
+                                    Icon(
+                                        imageVector = routineInfo.second,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(11.dp),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                    Text(
+                                        text = routineInfo.first,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
                             }
                         }
 
@@ -218,21 +239,43 @@ fun HabitCard(
                                 shape = RoundedCornerShape(4.dp),
                                 color = Color(0xFFE3F2FD)
                             ) {
-                                Text(
-                                    text = "❄️ Rest Day",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = Color(0xFF1565C0),
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.AcUnit,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(11.dp),
+                                        tint = Color(0xFF1565C0)
+                                    )
+                                    Text(
+                                        text = "Rest Day",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = Color(0xFF1565C0)
+                                    )
+                                }
                             }
                         }
 
                         // Streak Badge
-                        Text(
-                            text = "🔥 ${habitItem.currentStreak} streak",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                            color = if (habitItem.currentStreak > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.LocalFireDepartment,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = if (habitItem.currentStreak > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${habitItem.currentStreak} streak",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                color = if (habitItem.currentStreak > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
 
                         // 7d consistency
                         Text(
@@ -285,7 +328,13 @@ fun HabitCard(
                         if (onToggleFreezeToday != null) {
                             DropdownMenuItem(
                                 text = { Text(if (habitItem.isFrozenToday) "Unfreeze Today" else "Freeze for Today (Rest Day)") },
-                                leadingIcon = { Text("❄️") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.AcUnit,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
                                 onClick = {
                                     isMenuExpanded = false
                                     onToggleFreezeToday()
@@ -479,10 +528,11 @@ private fun HabitDayCell(
                         .border(1.dp, Color(0xFF64B5F6), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "❄",
-                        fontSize = 9.sp,
-                        color = Color(0xFF1976D2)
+                    Icon(
+                        imageVector = Icons.Outlined.AcUnit,
+                        contentDescription = null,
+                        modifier = Modifier.size(10.dp),
+                        tint = Color(0xFF1976D2)
                     )
                 }
             }
@@ -617,12 +667,12 @@ private fun HealthMetricControls(
 
                 "mood" -> {
                     val currentMood = habitItem.todayValue?.toInt()
-                    val emojis = listOf(
-                        1 to "😞",
-                        2 to "😐",
-                        3 to "🙂",
-                        4 to "😊",
-                        5 to "😄"
+                    val moodIcons = listOf(
+                        1 to Icons.Outlined.SentimentVeryDissatisfied,
+                        2 to Icons.Outlined.SentimentDissatisfied,
+                        3 to Icons.Outlined.SentimentNeutral,
+                        4 to Icons.Outlined.SentimentSatisfied,
+                        5 to Icons.Outlined.SentimentVerySatisfied
                     )
                     var noteText by remember(habitItem.todayNote) {
                         mutableStateOf(habitItem.todayNote ?: "")
@@ -641,7 +691,7 @@ private fun HealthMetricControls(
                         horizontalArrangement = Arrangement.SpaceAround,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        emojis.forEach { (rating, emoji) ->
+                        moodIcons.forEach { (rating, icon) ->
                             val isSelected = currentMood == rating
                             Box(
                                 modifier = Modifier
@@ -661,9 +711,11 @@ private fun HealthMetricControls(
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = emoji,
-                                    fontSize = 22.sp
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }

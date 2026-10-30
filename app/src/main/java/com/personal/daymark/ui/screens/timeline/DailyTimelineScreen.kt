@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.DashboardCustomize
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -672,14 +673,14 @@ fun DailyTimelineScreen(
                         ) {
                             if (conflictingBlock != null) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Lock,
+                                    imageVector = Icons.Outlined.Warning,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onErrorContainer,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "⚠️ Conflicts with busy block: \"${conflictingBlock.title}\" ($previewTimeString)",
+                                    text = "Conflicts with busy block: \"${conflictingBlock.title}\" ($previewTimeString)",
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onErrorContainer
                                 )

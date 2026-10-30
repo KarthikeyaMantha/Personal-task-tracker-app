@@ -180,7 +180,7 @@ private fun HealthWidgetContent(
             )
 
             Button(
-                text = "Log Mood 🙂",
+                text = "Log Mood",
                 onClick = actionStartActivity<MoodLogOverlayActivity>()
             )
         }
@@ -245,7 +245,7 @@ private fun HealthWidgetContent(
             verticalAlignment = Alignment.Vertical.CenterVertically
         ) {
             Text(
-                text = "$waterGlasses/$targetGlasses glasses 💧",
+                text = "$waterGlasses/$targetGlasses glasses",
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurface,
                     fontWeight = FontWeight.Bold,
@@ -256,7 +256,7 @@ private fun HealthWidgetContent(
 
             val habitId = waterHabit?.id ?: -1L
             Button(
-                text = "+1 💧",
+                text = "+1 Glass",
                 onClick = actionRunCallback<IncrementWaterActionCallback>(
                     actionParametersOf(waterHabitIdKey to habitId)
                 )

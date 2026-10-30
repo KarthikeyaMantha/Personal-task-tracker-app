@@ -28,8 +28,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Mood
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.WaterDrop
+import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -467,11 +473,11 @@ fun AddEditHabitSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(
-                        "ANYTIME" to "⚡ Anytime",
-                        "MORNING" to "🌅 Morning",
-                        "AFTERNOON" to "☀️ Afternoon",
-                        "EVENING" to "🌙 Evening"
-                    ).forEach { (routineKey, routineLabel) ->
+                        Triple("ANYTIME", "Anytime", Icons.Outlined.Bolt),
+                        Triple("MORNING", "Morning", Icons.Outlined.WbSunny),
+                        Triple("AFTERNOON", "Afternoon", Icons.Outlined.LightMode),
+                        Triple("EVENING", "Evening", Icons.Outlined.Bedtime)
+                    ).forEach { (routineKey, routineLabel, icon) ->
                         val isSelected = routineTimeOfDay.equals(routineKey, ignoreCase = true)
                         Box(
                             modifier = Modifier
@@ -481,15 +487,26 @@ fun AddEditHabitSheet(
                                     else MaterialTheme.colorScheme.surfaceContainerHigh
                                 )
                                 .clickable { routineTimeOfDay = routineKey }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = routineLabel,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurface
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = routineLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
                 }
@@ -509,11 +526,11 @@ fun AddEditHabitSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(
-                        null to "None",
-                        "water" to "Water 💧",
-                        "sleep" to "Sleep 🌙",
-                        "mood" to "Mood 🙂"
-                    ).forEach { (metricKey, label) ->
+                        Triple(null, "None", null),
+                        Triple("water", "Water", Icons.Outlined.WaterDrop),
+                        Triple("sleep", "Sleep", Icons.Outlined.Bedtime),
+                        Triple("mood", "Mood", Icons.Outlined.Mood)
+                    ).forEach { (metricKey, label, icon) ->
                         val isSelected = healthMetricType == metricKey
                         Box(
                             modifier = Modifier
@@ -542,15 +559,28 @@ fun AddEditHabitSheet(
                                         }
                                     }
                                 }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurface
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (icon != null) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
                 }

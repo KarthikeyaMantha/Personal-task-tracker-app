@@ -291,7 +291,6 @@ class InsightsViewModel(
             )
         }
 
-        val moodEmojis = mapOf(1 to "😞", 2 to "😐", 3 to "🙂", 4 to "😊", 5 to "😄")
         val moodChart = (6 downTo 0).map { daysAgo ->
             val date = today.minusDays(daysAgo.toLong())
             val log = moodHabit?.logs?.firstOrNull { it.date == date.toEpochDay() }
@@ -300,7 +299,7 @@ class InsightsViewModel(
                 dayLabel = date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
                 date = date,
                 value = value,
-                displayValue = moodEmojis[value.toInt()] ?: "—",
+                displayValue = if (value > 0f) "${value.toInt()}/5" else "—",
                 isToday = daysAgo == 0
             )
         }

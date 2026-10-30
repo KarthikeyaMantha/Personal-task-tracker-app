@@ -17,6 +17,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.mutableStateOf
 import com.personal.daymark.ui.voice.VoiceInputBottomSheet
 import com.personal.daymark.ui.voice.VoiceInputViewModel
@@ -147,17 +152,26 @@ fun HabitsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 listOf(
-                    null to "All Routines",
-                    "MORNING" to "🌅 Morning",
-                    "AFTERNOON" to "☀️ Afternoon",
-                    "EVENING" to "🌙 Evening",
-                    "ANYTIME" to "⚡ Anytime"
-                ).forEach { (routineKey, label) ->
+                    Triple(null, "All Routines", null),
+                    Triple("MORNING", "Morning", Icons.Outlined.WbSunny),
+                    Triple("AFTERNOON", "Afternoon", Icons.Outlined.LightMode),
+                    Triple("EVENING", "Evening", Icons.Outlined.Bedtime),
+                    Triple("ANYTIME", "Anytime", Icons.Outlined.Bolt)
+                ).forEach { (routineKey, label, icon) ->
                     val isSelected = uiState.selectedRoutineTimeOfDay.equals(routineKey, ignoreCase = true)
                     FilterChip(
                         selected = isSelected,
                         onClick = { viewModel.filterByRoutine(if (isSelected && routineKey != null) null else routineKey) },
-                        label = { Text(label) }
+                        label = { Text(label) },
+                        leadingIcon = icon?.let {
+                            {
+                                Icon(
+                                    imageVector = it,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
                     )
                 }
             }
@@ -235,13 +249,13 @@ fun HabitsScreen(
                         }
                     } else {
                         val routines = listOf(
-                            "MORNING" to "🌅 Morning Routine",
-                            "AFTERNOON" to "☀️ Afternoon Routine",
-                            "EVENING" to "🌙 Evening Wind-down",
-                            "ANYTIME" to "⚡ Anytime Habits"
+                            Triple("MORNING", "Morning Routine", Icons.Outlined.WbSunny),
+                            Triple("AFTERNOON", "Afternoon Routine", Icons.Outlined.LightMode),
+                            Triple("EVENING", "Evening Wind-down", Icons.Outlined.Bedtime),
+                            Triple("ANYTIME", "Anytime Habits", Icons.Outlined.Bolt)
                         )
 
-                        routines.forEach { (routineKey, routineTitle) ->
+                        routines.forEach { (routineKey, routineTitle, icon) ->
                             val habitsInRoutine = uiState.habits.filter {
                                 if (routineKey == "ANYTIME") {
                                     it.habit.routineTimeOfDay.equals("ANYTIME", ignoreCase = true) ||
@@ -255,12 +269,23 @@ fun HabitsScreen(
 
                             if (habitsInRoutine.isNotEmpty()) {
                                 item(key = "header_$routineKey") {
-                                    Text(
-                                        text = routineTitle,
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = routineTitle,
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
 
                                 items(

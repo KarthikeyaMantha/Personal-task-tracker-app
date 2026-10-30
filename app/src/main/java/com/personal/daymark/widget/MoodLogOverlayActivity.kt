@@ -19,6 +19,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SentimentDissatisfied
+import androidx.compose.material.icons.outlined.SentimentNeutral
+import androidx.compose.material.icons.outlined.SentimentSatisfied
+import androidx.compose.material.icons.outlined.SentimentVeryDissatisfied
+import androidx.compose.material.icons.outlined.SentimentVerySatisfied
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -97,12 +104,12 @@ fun MoodLogOverlay(
     var selectedRating by remember { mutableIntStateOf(0) }
     var note by remember { mutableStateOf("") }
 
-    val emojis = listOf(
-        1 to "😞",
-        2 to "😐",
-        3 to "🙂",
-        4 to "😊",
-        5 to "😄"
+    val moodIcons = listOf(
+        1 to Icons.Outlined.SentimentVeryDissatisfied,
+        2 to Icons.Outlined.SentimentDissatisfied,
+        3 to Icons.Outlined.SentimentNeutral,
+        4 to Icons.Outlined.SentimentSatisfied,
+        5 to Icons.Outlined.SentimentVerySatisfied
     )
 
     Box(
@@ -145,7 +152,7 @@ fun MoodLogOverlay(
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    emojis.forEach { (rating, emoji) ->
+                    moodIcons.forEach { (rating, icon) ->
                         val isSelected = selectedRating == rating
                         Box(
                             modifier = Modifier
@@ -165,7 +172,12 @@ fun MoodLogOverlay(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = emoji, fontSize = 24.sp)
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(26.dp),
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
