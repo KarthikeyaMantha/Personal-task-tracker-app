@@ -59,26 +59,29 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({
   };
 
   const selectedDayTasks = getTasksForDay(selectedDate.getDate());
+  const monthTitle = currentMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-4 pb-28">
       {/* Month Navigation Header */}
       <div className="flex items-center justify-between px-2">
-        <h2 className="text-lg font-bold text-white">
-          {currentMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-        </h2>
+        <h2 className="text-lg font-bold text-white">{monthTitle}</h2>
         <div className="flex space-x-1">
           <button
+            type="button"
             onClick={prevMonth}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+            aria-label="Previous month"
+            className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition focus:outline-none focus:ring-1 focus:ring-coral"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={nextMonth}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+            aria-label="Next month"
+            className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition focus:outline-none focus:ring-1 focus:ring-coral"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -86,34 +89,34 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({
       {/* Clear Legend Row */}
       <div className="flex items-center justify-around py-2 px-3 bg-[#18181B] border border-[#27272A] rounded-2xl text-[11px] font-semibold text-zinc-300">
         <div className="flex items-center space-x-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-coral shadow-sm shadow-coral/30" />
+          <span className="w-2.5 h-2.5 rounded-full bg-coral shadow-sm shadow-coral/30" aria-hidden="true" />
           <span>Selected</span>
         </div>
         <div className="flex items-center space-x-1.5">
-          <span className="w-2.5 h-2.5 rounded-full border-2 border-coral" />
+          <span className="w-2.5 h-2.5 rounded-full border-2 border-coral" aria-hidden="true" />
           <span>Today</span>
         </div>
         <div className="flex items-center space-x-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" aria-hidden="true" />
           <span>Completed</span>
         </div>
         <div className="flex items-center space-x-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-zinc-500" />
+          <span className="w-2.5 h-2.5 rounded-full bg-zinc-500" aria-hidden="true" />
           <span>Scheduled</span>
         </div>
       </div>
 
       {/* Weekday Column Headers */}
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-zinc-500 py-1">
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-zinc-400 py-1" aria-hidden="true">
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => (
           <div key={idx}>{day}</div>
         ))}
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1" role="grid" aria-label={`Calendar grid for ${monthTitle}`}>
         {Array.from({ length: startingDay }).map((_, idx) => (
-          <div key={`empty-${idx}`} className="h-10" />
+          <div key={`empty-${idx}`} className="h-10" aria-hidden="true" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, idx) => {
@@ -127,8 +130,12 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({
           return (
             <button
               key={dayNum}
+              type="button"
+              role="gridcell"
+              aria-selected={sel}
+              aria-label={`${dayNum} ${monthTitle}${tod ? ', today' : ''}${dayTasks.length > 0 ? `, ${dayTasks.length} tasks` : ''}`}
               onClick={() => setSelectedDate(new Date(year, month, dayNum))}
-              className={`h-11 rounded-xl flex flex-col items-center justify-center transition-all ${
+              className={`h-11 rounded-xl flex flex-col items-center justify-center transition-all focus:outline-none focus:ring-1 focus:ring-coral ${
                 sel
                   ? 'bg-coral text-white font-bold shadow-md shadow-coral/30'
                   : tod
@@ -137,7 +144,7 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({
               }`}
             >
               <span className="text-xs leading-none">{dayNum}</span>
-              <div className="flex space-x-0.5 mt-1">
+              <div className="flex space-x-0.5 mt-1" aria-hidden="true">
                 {sel ? (
                   dayTasks.length > 0 && <span className="w-1 h-1 rounded-full bg-white" />
                 ) : (
@@ -171,10 +178,11 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({
           <div className="bg-[#18181B] border border-[#27272A] rounded-2xl p-6 text-center">
             <p className="text-xs text-zinc-400">No tasks scheduled for this day.</p>
             <button
+              type="button"
               onClick={() => onOpenNewTaskForDate(selectedDate)}
-              className="mt-3 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-coral text-white shadow-sm inline-flex items-center space-x-1"
+              className="mt-3 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-coral text-white shadow-sm inline-flex items-center space-x-1 hover:bg-coral-light active:scale-95 transition"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <Plus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
               <span>Add task for this day</span>
             </button>
           </div>
@@ -196,4 +204,3 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({
     </div>
   );
 };
-

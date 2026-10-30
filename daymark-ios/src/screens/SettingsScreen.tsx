@@ -51,19 +51,21 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <button
+          type="button"
           onClick={onBack}
-          className="p-2 -ml-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+          aria-label="Back to main screen"
+          className="p-2 -ml-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition focus:outline-none focus:ring-1 focus:ring-coral"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5" aria-hidden="true" />
         </button>
         <h2 className="text-lg font-bold text-white">Settings</h2>
-        <div className="w-9" />
+        <div className="w-9" aria-hidden="true" />
       </div>
 
       {/* Theme Preference */}
       <div className="bg-[#18181B] border border-[#27272A] rounded-2xl p-4 space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Appearance</h3>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Theme mode">
           {[
             { id: 'system', label: 'System', icon: Monitor },
             { id: 'light', label: 'Light', icon: Sun },
@@ -74,14 +76,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             return (
               <button
                 key={t.id}
+                type="button"
+                role="radio"
+                aria-checked={isSel}
                 onClick={() => onThemeChange(t.id as any)}
-                className={`flex flex-col items-center justify-center py-2.5 rounded-xl border text-xs font-semibold transition ${
+                className={`flex flex-col items-center justify-center py-2.5 rounded-xl border text-xs font-semibold transition focus:outline-none focus:ring-1 focus:ring-coral ${
                   isSel
                     ? 'bg-coral text-white border-coral shadow-sm shadow-coral/30'
                     : 'bg-zinc-800/80 border-zinc-700 text-zinc-300 hover:bg-zinc-700'
                 }`}
               >
-                <Icon className="w-4 h-4 mb-1" />
+                <Icon className="w-4 h-4 mb-1" aria-hidden="true" />
                 <span>{t.label}</span>
               </button>
             );
@@ -94,40 +99,43 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Data & Privacy</h3>
         <div className="space-y-2">
           <button
+            type="button"
             onClick={handleExportData}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-sm font-semibold text-zinc-200 transition"
+            aria-label="Export backup JSON"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-sm font-semibold text-zinc-200 transition focus:outline-none focus:ring-1 focus:ring-coral"
           >
             <div className="flex items-center space-x-2.5">
-              <Download className="w-4 h-4 text-coral" />
-              <span>Export All Data (JSON)</span>
+              <Download className="w-4 h-4 text-coral" aria-hidden="true" />
+              <span>Export Backup JSON</span>
             </div>
-            <span className="text-xs text-zinc-500">Backup</span>
+            <span className="text-[11px] text-zinc-400 font-medium">Download</span>
           </button>
 
           <button
+            type="button"
             onClick={handleClearAllData}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-sm font-semibold text-rose-400 transition"
+            aria-label="Reset all local data"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-sm font-semibold text-rose-400 transition focus:outline-none focus:ring-1 focus:ring-rose-500"
           >
             <div className="flex items-center space-x-2.5">
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-4 h-4 text-rose-400" aria-hidden="true" />
               <span>Clear All Data</span>
             </div>
-            <span className="text-xs text-rose-400/80">Reset</span>
+            <span className="text-[11px] text-rose-400 font-medium">Reset</span>
           </button>
         </div>
       </div>
 
-      {/* Offline & Architecture Notice */}
-      <div className="bg-[#18181B] border border-[#27272A] rounded-2xl p-5 space-y-2">
-        <div className="flex items-center space-x-2 text-emerald-400 font-bold text-sm">
-          <ShieldCheck className="w-5 h-5" />
-          <span>100% Private & Local</span>
+      {/* Privacy Guarantee */}
+      <div className="p-4 rounded-2xl bg-[#141416] border border-[#202024] flex items-start space-x-3 text-xs text-zinc-400 leading-relaxed">
+        <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
+        <div>
+          <p className="font-semibold text-white">100% On-Device Privacy</p>
+          <p className="mt-0.5 text-zinc-400">
+            Daymark stores all your habits, tasks, and journals locally inside your iPhone’s IndexedDB sandbox. No third-party servers, tracking, or telemetry.
+          </p>
         </div>
-        <p className="text-xs text-zinc-400 leading-relaxed">
-          Daymark iOS stores all your tasks, habits, and focus logs locally on your device in IndexedDB. Nothing is ever sent to any remote server or cloud.
-        </p>
       </div>
     </div>
   );
 };
-

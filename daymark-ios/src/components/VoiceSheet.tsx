@@ -18,6 +18,17 @@ export const VoiceSheet: React.FC<VoiceSheetProps> = ({
   const [editableTitle, setEditableTitle] = useState('');
   const [countdown, setCountdown] = useState<number | null>(null);
 
+  // Keyboard Escape listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     if (isOpen) {
       startListening();
@@ -77,18 +88,25 @@ export const VoiceSheet: React.FC<VoiceSheetProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} />
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="voice-sheet-title"
+      className="fixed inset-0 z-50 flex items-end justify-center"
+    >
+      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
 
-      <div className="relative w-full max-w-lg bg-[#18181B] text-white rounded-t-3xl p-6 shadow-2xl pb-[calc(env(safe-area-inset-bottom)+24px)] animate-in slide-in-from-bottom duration-200 text-center">
+      <div className="relative w-full max-w-lg bg-[#18181B] text-white rounded-t-3xl p-6 shadow-2xl pb-[calc(env(safe-area-inset-bottom,0px)+24px)] animate-in slide-in-from-bottom duration-200 text-center">
         {/* Header */}
         <div className="flex items-center justify-between pb-3">
-          <h2 className="text-base font-bold text-white">Voice Action</h2>
+          <h2 id="voice-sheet-title" className="text-base font-bold text-white">Voice Action</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800"
+            aria-label="Close voice sheet"
+            className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition focus:outline-none focus:ring-1 focus:ring-coral"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -97,36 +115,40 @@ export const VoiceSheet: React.FC<VoiceSheetProps> = ({
           <div className="relative flex items-center justify-center">
             {isListening && (
               <>
-                <div className="absolute w-28 h-28 rounded-full bg-coral/20 animate-ping" />
-                <div className="absolute w-24 h-24 rounded-full bg-coral/30" />
+                <div className="absolute w-28 h-28 rounded-full bg-coral/20 animate-ping" aria-hidden="true" />
+                <div className="absolute w-24 h-24 rounded-full bg-coral/30" aria-hidden="true" />
               </>
             )}
             <button
+              type="button"
               onClick={isListening ? stopListening : startListening}
-              className={`relative z-10 w-20 h-20 rounded-full flex items-center justify-center shadow-xl transition-all ${
+              aria-label={isListening ? 'Stop listening' : 'Start voice recognition'}
+              className={`relative z-10 w-20 h-20 rounded-full flex items-center justify-center shadow-xl transition-all focus:outline-none focus:ring-4 focus:ring-coral/40 ${
                 isListening
                   ? 'bg-coral shadow-coral/40 scale-105'
                   : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
               }`}
             >
-              <Mic className="w-9 h-9 text-white stroke-[2.5]" />
+              <Mic className="w-9 h-9 text-white stroke-[2.5]" aria-hidden="true" />
             </button>
           </div>
 
-          <p className="mt-4 text-sm font-semibold text-white">
-            {isListening
-              ? 'Listening...'
-              : parsedResult
-              ? 'Recognized!'
-              : 'Tap microphone to speak'}
-          </p>
+          <div aria-live="polite" className="mt-4">
+            <p className="text-sm font-semibold text-white">
+              {isListening
+                ? 'Listening...'
+                : parsedResult
+                ? 'Recognized!'
+                : 'Tap microphone to speak'}
+            </p>
 
-          <p className="text-xs text-zinc-400 max-w-xs mt-1">
-            {transcript ||
-              'Try: "Remind me to call Mom tomorrow at 6pm" or "Review presentation !urgent"'}
-          </p>
+            <p className="text-xs text-zinc-400 max-w-xs mt-1">
+              {transcript ||
+                'Try: "Remind me to call Mom tomorrow at 6pm" or "Review presentation !urgent"'}
+            </p>
 
-          {error && <p className="text-xs text-rose-400 mt-2 font-medium">{error}</p>}
+            {error && <p className="text-xs text-rose-400 mt-2 font-medium" role="alert">{error}</p>}
+          </div>
         </div>
 
         {/* Task Preview Card */}
@@ -137,27 +159,31 @@ export const VoiceSheet: React.FC<VoiceSheetProps> = ({
                 Recognized Task
               </span>
               <div className="flex items-center space-x-1 text-xs text-zinc-400">
-                <Edit3 className="w-3.5 h-3.5" />
+                <Edit3 className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Tap to edit</span>
               </div>
             </div>
 
             {/* Editable Title */}
-            <input
-              type="text"
-              value={editableTitle}
-              onChange={(e) => {
-                setEditableTitle(e.target.value);
-                setCountdown(null); // Cancel auto-countdown if user edits
-              }}
-              className="w-full bg-zinc-800/80 rounded-xl px-3 py-2 text-base font-semibold text-white focus:outline-none focus:ring-1 focus:ring-coral"
-            />
+            <div>
+              <label htmlFor="voice-recognized-title" className="sr-only">Recognized title</label>
+              <input
+                id="voice-recognized-title"
+                type="text"
+                value={editableTitle}
+                onChange={(e) => {
+                  setEditableTitle(e.target.value);
+                  setCountdown(null); // Cancel auto-countdown if user edits
+                }}
+                className="w-full bg-zinc-800/80 rounded-xl px-3 py-2 text-base font-semibold text-white focus:outline-none focus:ring-1 focus:ring-coral"
+              />
+            </div>
 
             {/* Metadata Chips */}
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap gap-2 pt-1" aria-label="Detected task attributes">
               {parsedResult.dueDate && (
                 <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-200">
-                  <Calendar className="w-3.5 h-3.5 text-coral" />
+                  <Calendar className="w-3.5 h-3.5 text-coral" aria-hidden="true" />
                   <span>
                     {new Date(parsedResult.dueDate).toLocaleDateString(undefined, {
                       weekday: 'short',
@@ -170,7 +196,7 @@ export const VoiceSheet: React.FC<VoiceSheetProps> = ({
 
               {parsedResult.dueTimeMinutes !== undefined && (
                 <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-200">
-                  <Clock className="w-3.5 h-3.5 text-coral" />
+                  <Clock className="w-3.5 h-3.5 text-coral" aria-hidden="true" />
                   <span>
                     {Math.floor(parsedResult.dueTimeMinutes / 60) % 12 || 12}:
                     {(parsedResult.dueTimeMinutes % 60).toString().padStart(2, '0')}{' '}
@@ -179,34 +205,29 @@ export const VoiceSheet: React.FC<VoiceSheetProps> = ({
                 </div>
               )}
 
-              {parsedResult.priority && (
-                <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                  <Flag className="w-3.5 h-3.5 text-rose-400" />
-                  <span>
-                    {parsedResult.priority === 4
-                      ? 'Urgent'
-                      : parsedResult.priority === 3
-                      ? 'High'
-                      : parsedResult.priority === 2
-                      ? 'Medium'
-                      : 'Low'}
-                  </span>
+              {parsedResult.priority && parsedResult.priority >= 3 && (
+                <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                  <Flag className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>{parsedResult.priority === 4 ? 'Urgent' : 'High Priority'}</span>
                 </div>
               )}
             </div>
 
-            {/* Save Button with countdown */}
-            <div className="pt-2">
+            {/* Auto-save Countdown & Actions */}
+            <div className="pt-2 flex items-center justify-between border-t border-zinc-700/60">
+              <span className="text-xs text-zinc-400" aria-live="polite">
+                {countdown !== null && countdown > 0
+                  ? `Auto-saving in ${countdown}s...`
+                  : 'Ready to save'}
+              </span>
+
               <button
+                type="button"
                 onClick={handleSaveNow}
-                className="w-full py-3 rounded-xl font-bold text-sm bg-coral text-white hover:bg-coral-light active:scale-[0.98] shadow-lg shadow-coral/30 flex items-center justify-center space-x-2 transition"
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-coral text-white hover:bg-coral-light active:scale-95 shadow-md shadow-coral/30 flex items-center space-x-1.5 transition"
               >
-                <Check className="w-4 h-4 stroke-[3]" />
-                <span>
-                  {countdown !== null && countdown > 0
-                    ? `Save Task (auto-saving in ${countdown}s)`
-                    : 'Save Task Now'}
-                </span>
+                <Check className="w-4 h-4 stroke-[3]" aria-hidden="true" />
+                <span>Save Now</span>
               </button>
             </div>
           </div>
@@ -215,4 +236,3 @@ export const VoiceSheet: React.FC<VoiceSheetProps> = ({
     </div>
   );
 };
-

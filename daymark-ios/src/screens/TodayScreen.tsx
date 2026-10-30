@@ -63,11 +63,14 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
       </div>
 
       {/* Daily Rhythm Progress Card */}
-      <div className="bg-[#18181B] border border-[#27272A] rounded-3xl p-5 shadow-lg flex items-center justify-between">
+      <section
+        aria-label="Daily progress summary"
+        className="bg-[#18181B] border border-[#27272A] rounded-3xl p-5 shadow-lg flex items-center justify-between"
+      >
         <div className="flex items-center space-x-4">
-          <div className="relative w-16 h-16 flex items-center justify-center">
+          <div className="relative w-16 h-16 flex items-center justify-center" aria-label={`${taskProgress}% tasks completed`}>
             {/* SVG Progress Ring */}
-            <svg className="w-full h-full transform -rotate-90">
+            <svg className="w-full h-full transform -rotate-90" aria-hidden="true">
               <circle
                 cx="32"
                 cy="32"
@@ -104,19 +107,21 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
         </div>
 
         <button
+          type="button"
           onClick={onOpenFocus}
-          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-coral flex items-center space-x-1.5 transition active:scale-95 shadow-sm"
+          aria-label="Start 25-minute focus session"
+          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-coral flex items-center space-x-1.5 transition active:scale-95 shadow-sm focus:outline-none focus:ring-1 focus:ring-coral"
         >
-          <Timer className="w-3.5 h-3.5" />
+          <Timer className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Focus (25m)</span>
         </button>
-      </div>
+      </section>
 
       {/* Overdue Section */}
       {overdueTasks.length > 0 && (
-        <div className="space-y-3">
+        <section aria-label="Overdue attention" className="space-y-3">
           <div className="flex items-center space-x-2 text-rose-400">
-            <AlertTriangle className="w-4 h-4" />
+            <AlertTriangle className="w-4 h-4" aria-hidden="true" />
             <h3 className="text-sm font-bold uppercase tracking-wider">
               Overdue Attention ({overdueTasks.length})
             </h3>
@@ -134,11 +139,11 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
               />
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Today's Focus List or Active Quick State */}
-      <div className="space-y-3">
+      {/* Today's Focus List */}
+      <section aria-label="Today's focus" className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-white">Today's Focus</h3>
           <span className="text-xs text-zinc-400 font-semibold">
@@ -148,7 +153,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
 
         {todayTasks.length === 0 ? (
           <div className="bg-[#18181B] border border-[#27272A] rounded-3xl p-7 text-center space-y-4">
-            <div className="w-12 h-12 mx-auto rounded-full bg-coral/10 text-coral flex items-center justify-center">
+            <div className="w-12 h-12 mx-auto rounded-full bg-coral/10 text-coral flex items-center justify-center" aria-hidden="true">
               <Sparkles className="w-6 h-6 stroke-[2.2]" />
             </div>
             <div>
@@ -159,17 +164,21 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
             </div>
             <div className="flex justify-center gap-3 pt-1">
               <button
+                type="button"
                 onClick={onOpenVoice}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-coral flex items-center space-x-2 transition active:scale-95"
+                aria-label="Create task with voice"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-coral flex items-center space-x-2 transition active:scale-95 focus:outline-none focus:ring-1 focus:ring-coral"
               >
-                <Mic className="w-4 h-4" />
+                <Mic className="w-4 h-4" aria-hidden="true" />
                 <span>Voice Task</span>
               </button>
               <button
+                type="button"
                 onClick={onOpenNewTask}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-coral hover:bg-coral-light text-white shadow-md shadow-coral/30 flex items-center space-x-2 transition active:scale-95"
+                aria-label="Add task"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-coral hover:bg-coral-light text-white shadow-md shadow-coral/30 flex items-center space-x-2 transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-coral"
               >
-                <Plus className="w-4 h-4 stroke-[3]" />
+                <Plus className="w-4 h-4 stroke-[3]" aria-hidden="true" />
                 <span>Add Task</span>
               </button>
             </div>
@@ -189,17 +198,17 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* Floating Action Button (+) */}
       <button
+        type="button"
         onClick={onOpenNewTask}
-        className="fixed right-5 fab-bottom-safe z-30 w-14 h-14 rounded-full bg-coral text-white shadow-xl shadow-coral/40 flex items-center justify-center hover:bg-coral-light active:scale-95 transition-all"
         aria-label="Create task"
+        className="fixed right-5 fab-bottom-safe z-30 w-14 h-14 rounded-full bg-coral text-white shadow-xl shadow-coral/40 flex items-center justify-center hover:bg-coral-light active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-coral"
       >
-        <Plus className="w-7 h-7 stroke-[2.8]" />
+        <Plus className="w-7 h-7 stroke-[2.8]" aria-hidden="true" />
       </button>
     </div>
   );
 };
-

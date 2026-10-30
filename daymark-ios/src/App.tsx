@@ -12,7 +12,8 @@ import { CalendarScreen } from './screens/CalendarScreen';
 import { FocusScreen } from './screens/FocusScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { Share, PlusSquare, RotateCcw } from 'lucide-react';
-import type { Task, Habit } from './types';
+import confetti from 'canvas-confetti';
+import type { Task, Habit, HabitLog } from './types';
 
 export function App() {
   const [currentTab, setCurrentTab] = useState<'today' | 'tasks' | 'calendar' | 'habits'>('today');
@@ -39,6 +40,7 @@ export function App() {
   // Live queries
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) || [];
   const habits = useLiveQuery(() => db.habits.toArray(), []) || [];
+  const habitLogs = useLiveQuery(() => db.habitLogs.toArray(), []) || [];
   const categories = useLiveQuery(() => db.categories.toArray(), []) || [];
 
   // Theme application
@@ -93,11 +95,28 @@ export function App() {
   // Habit actions
   const handleToggleHabit = async (habit: Habit) => {
     if (!habit.id) return;
-    const newStreak = habit.currentStreak + 1;
-    await db.habits.update(habit.id, {
-      currentStreak: newStreak,
-      longestStreak: Math.max(habit.longestStreak, newStreak),
-    });
+    const todayStr = new Date().toISOString().split('T')[0];
+    const existingLog = await db.habitLogs.where({ habitId: habit.id, date: todayStr }).first();
+
+    if (existingLog && existingLog.isCompleted) {
+      if (existingLog.id) await db.habitLogs.delete(existingLog.id);
+      const newStreak = Math.max(0, habit.currentStreak - 1);
+      await db.habits.update(habit.id, { currentStreak: newStreak });
+    } else {
+      await db.habitLogs.add({
+        habitId: habit.id,
+        date: todayStr,
+        isCompleted: true,
+      });
+      const newStreak = habit.currentStreak + 1;
+      await db.habits.update(habit.id, {
+        currentStreak: newStreak,
+        longestStreak: Math.max(habit.longestStreak, newStreak),
+      });
+      try {
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+      } catch (e) {}
+    }
   };
 
   const handleAddHabit = async (habitData: Omit<Habit, 'id' | 'createdAt' | 'currentStreak' | 'longestStreak'>) => {
@@ -150,8 +169,10 @@ export function App() {
               </span>
             </div>
             <button
+              type="button"
               onClick={() => setShowIosPrompt(false)}
-              className="text-zinc-500 hover:text-white p-1 text-xs font-bold"
+              aria-label="Dismiss install guidance"
+              className="text-zinc-400 hover:text-white p-1 text-xs font-bold"
             >
               ✕
             </button>
@@ -204,6 +225,7 @@ export function App() {
         ) : currentTab === 'habits' ? (
           <HabitsScreen
             habits={habits}
+            habitLogs={habitLogs}
             onToggleHabit={handleToggleHabit}
             onAddHabit={handleAddHabit}
             onDeleteHabit={handleDeleteHabit}

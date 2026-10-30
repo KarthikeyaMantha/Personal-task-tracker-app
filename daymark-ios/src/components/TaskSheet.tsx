@@ -31,6 +31,21 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
   const [showMore, setShowMore] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Keyboard Escape listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        if (showDeleteConfirm) {
+          setShowDeleteConfirm(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, showDeleteConfirm, onClose]);
+
   useEffect(() => {
     if (taskToEdit) {
       setTitle(taskToEdit.title);
@@ -108,45 +123,55 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
     else if (timeType === 'afternoon') computedDueTime = 780; // 1:00 PM
     else if (timeType === 'evening') computedDueTime = 1080; // 6:00 PM
     else if (timeType === 'custom' && customTime) {
-      const [h, m] = customTime.split(':').map(Number);
+      const [h, m] = customTime.split(':').map((n) => parseInt(n, 10));
       computedDueTime = h * 60 + m;
     }
 
     await onSave({
-      id: taskToEdit?.id,
+      ...(taskToEdit?.id ? { id: taskToEdit.id } : {}),
       title: title.trim(),
       description: description.trim() || undefined,
-      isCompleted: taskToEdit?.isCompleted ?? false,
       dueDate: computedDueDate,
       dueTime: computedDueTime,
-      priority: priority || undefined,
-      categoryId: categoryId || undefined,
       recurrenceRule: repeatType !== 'none' ? repeatType : undefined,
+      priority: priority > 0 ? priority : undefined,
+      categoryId,
+      isCompleted: taskToEdit ? taskToEdit.isCompleted : false,
     });
+
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="task-sheet-title"
+      className="fixed inset-0 z-50 flex items-end justify-center"
+    >
+      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
 
-      <div className="relative w-full max-w-lg bg-[#18181B] text-white rounded-t-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+20px)] animate-in slide-in-from-bottom duration-200">
+      <div className="relative w-full max-w-lg bg-[#18181B] text-white rounded-t-3xl p-6 shadow-2xl max-h-[90dvh] overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+24px)] animate-in slide-in-from-bottom duration-200">
         <div className="flex items-center justify-between pb-4 border-b border-[#27272A]">
-          <h2 className="text-lg font-bold text-white">
+          <h2 id="task-sheet-title" className="text-lg font-bold text-white">
             {taskToEdit ? 'Edit Task' : 'New Task'}
           </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800"
+            aria-label="Close task sheet"
+            className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition focus:outline-none focus:ring-1 focus:ring-coral"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSave} className="space-y-5 mt-4">
           {/* Title Input */}
           <div>
+            <label htmlFor="task-title-input" className="sr-only">Task title</label>
             <input
+              id="task-title-input"
               type="text"
               autoFocus
               placeholder="What needs to be done?"
@@ -161,7 +186,7 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
             <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block mb-2">
               Due Date
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Due date options">
               {[
                 { id: 'none', label: 'No Date' },
                 { id: 'today', label: 'Today' },
@@ -171,8 +196,10 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
                 <button
                   key={chip.id}
                   type="button"
+                  role="radio"
+                  aria-checked={dueDateType === chip.id}
                   onClick={() => setDueDateType(chip.id as any)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-1 focus:ring-coral ${
                     dueDateType === chip.id
                       ? 'bg-coral text-white shadow-md shadow-coral/30'
                       : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
@@ -185,6 +212,7 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
             {dueDateType === 'custom' && (
               <input
                 type="date"
+                aria-label="Select custom date"
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
                 className="mt-2 w-full px-3 py-2 bg-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:ring-1 focus:ring-coral"
@@ -192,12 +220,12 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
             )}
           </div>
 
-          {/* Reminder Time Chips */}
+          {/* Time Chips */}
           <div>
             <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block mb-2">
-              Reminder Time
+              Time
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Time options">
               {[
                 { id: 'none', label: 'No Time' },
                 { id: 'morning', label: 'Morning (9:00 AM)' },
@@ -207,8 +235,10 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
                 <button
                   key={chip.id}
                   type="button"
+                  role="radio"
+                  aria-checked={timeType === chip.id}
                   onClick={() => setTimeType(chip.id as any)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-1 focus:ring-coral ${
                     timeType === chip.id
                       ? 'bg-coral text-white shadow-md shadow-coral/30'
                       : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
@@ -225,7 +255,7 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
             <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block mb-2">
               Repeat
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Repeat options">
               {[
                 { id: 'none', label: 'Does not repeat' },
                 { id: 'daily', label: 'Daily' },
@@ -235,8 +265,10 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
                 <button
                   key={chip.id}
                   type="button"
+                  role="radio"
+                  aria-checked={repeatType === chip.id}
                   onClick={() => setRepeatType(chip.id as any)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-1 focus:ring-coral ${
                     repeatType === chip.id
                       ? 'bg-coral text-white shadow-md shadow-coral/30'
                       : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
@@ -252,18 +284,21 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
           <div className="border-t border-[#27272A] pt-3">
             <button
               type="button"
+              aria-expanded={showMore}
               onClick={() => setShowMore(!showMore)}
               className="flex items-center justify-between w-full text-xs font-medium text-zinc-400 hover:text-zinc-200 py-1"
             >
               <span>More options (notes, priority, category)</span>
-              {showMore ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showMore ? <ChevronUp className="w-4 h-4" aria-hidden="true" /> : <ChevronDown className="w-4 h-4" aria-hidden="true" />}
             </button>
 
             {showMore && (
               <div className="space-y-4 pt-3">
                 {/* Notes Input */}
                 <div>
+                  <label htmlFor="task-notes-input" className="sr-only">Notes</label>
                   <textarea
+                    id="task-notes-input"
                     placeholder="Add notes..."
                     rows={2}
                     value={description}
@@ -275,22 +310,26 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
                 {/* Priority Selection */}
                 <div>
                   <label className="text-xs font-semibold text-zinc-400 block mb-2">Priority</label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" role="radiogroup" aria-label="Task priority">
                     {[
                       { val: 0, label: 'None' },
-                      { val: 1, label: 'Low', color: 'text-zinc-400' },
-                      { val: 2, label: 'Medium', color: 'text-amber-400' },
-                      { val: 3, label: 'High', color: 'text-coral' },
-                      { val: 4, label: 'Urgent', color: 'text-rose-500' },
+                      { val: 1, label: 'Low' },
+                      { val: 2, label: 'Medium' },
+                      { val: 3, label: 'High' },
+                      { val: 4, label: 'Urgent' },
                     ].map((p) => (
                       <button
                         key={p.val}
                         type="button"
+                        role="radio"
+                        aria-checked={priority === p.val}
                         onClick={() => setPriority(p.val)}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                        className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition focus:outline-none focus:ring-1 focus:ring-coral ${
                           priority === p.val
-                            ? 'bg-coral text-white border-coral shadow-sm shadow-coral/30'
-                            : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'
+                            ? p.val >= 3
+                              ? 'bg-rose-500/20 text-rose-400 border-rose-500/40'
+                              : 'bg-coral text-white border-coral'
+                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
                         }`}
                       >
                         {p.label}
@@ -309,11 +348,11 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
                         onClick={() => setCategoryId(undefined)}
                         className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
                           categoryId === undefined
-                            ? 'bg-zinc-200 text-zinc-900 font-bold'
-                            : 'bg-zinc-800 text-zinc-300'
+                            ? 'bg-zinc-600 text-white'
+                            : 'bg-zinc-800 text-zinc-400'
                         }`}
                       >
-                        General
+                        None
                       </button>
                       {categories.map((cat) => (
                         <button
@@ -326,7 +365,7 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
                               : 'bg-zinc-800 text-zinc-300'
                           }`}
                         >
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} aria-hidden="true" />
                           <span>{cat.name}</span>
                         </button>
                       ))}
@@ -343,9 +382,10 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex-1 py-3.5 px-4 rounded-xl font-bold text-sm text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 flex items-center justify-center space-x-2 transition"
+                aria-label="Delete this task"
+                className="flex-1 py-3.5 px-4 rounded-xl font-bold text-sm text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 flex items-center justify-center space-x-2 transition focus:outline-none focus:ring-1 focus:ring-rose-500"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
                 <span>Delete</span>
               </button>
             )}
@@ -353,7 +393,7 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
             <button
               type="submit"
               disabled={!title.trim()}
-              className="flex-[2] py-3.5 px-6 rounded-xl font-bold text-sm bg-coral text-white hover:bg-coral-light active:scale-[0.98] shadow-lg shadow-coral/30 disabled:opacity-40 disabled:pointer-events-none transition"
+              className="flex-[2] py-3.5 px-6 rounded-xl font-bold text-sm bg-coral text-white hover:bg-coral-light active:scale-[0.98] shadow-lg shadow-coral/30 disabled:opacity-40 disabled:pointer-events-none transition focus:outline-none focus:ring-2 focus:ring-coral/70"
             >
               Save
             </button>
@@ -362,17 +402,23 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-dialog-title"
+            aria-describedby="delete-dialog-desc"
+            className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+          >
             <div className="bg-[#202024] p-5 rounded-2xl max-w-sm w-full border border-zinc-700 shadow-2xl text-center space-y-4">
-              <h3 className="text-base font-bold text-white">Delete Task?</h3>
-              <p className="text-xs text-zinc-300">
+              <h3 id="delete-dialog-title" className="text-base font-bold text-white">Delete Task?</h3>
+              <p id="delete-dialog-desc" className="text-xs text-zinc-300">
                 Are you sure you want to permanently delete "{title}"? This cannot be undone.
               </p>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition"
                 >
                   Cancel
                 </button>
@@ -385,7 +431,7 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
                     setShowDeleteConfirm(false);
                     onClose();
                   }}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-500/30"
+                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-500/30 transition"
                 >
                   Delete
                 </button>
@@ -397,4 +443,3 @@ export const TaskSheet: React.FC<TaskSheetProps> = ({
     </div>
   );
 };
-

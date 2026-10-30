@@ -49,31 +49,45 @@ export const TaskItem: React.FC<TaskItemProps> = ({
     task.dueDate &&
     task.dueDate < new Date().setHours(0, 0, 0, 0);
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onEdit(task);
+    }
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onEdit(task)}
-      className={`group relative flex items-center p-4 rounded-2xl bg-[#1A1A1E] border transition-all active:scale-[0.99] cursor-pointer shadow-sm ${
+      onKeyDown={handleKeyDown}
+      aria-label={`Task: ${task.title}${dueText ? `, due ${dueText}` : ''}${task.isCompleted ? ', completed' : ''}`}
+      className={`group relative flex items-center p-4 rounded-2xl bg-[#1A1A1E] border transition-all active:scale-[0.99] cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-coral/50 ${
         task.isCompleted
           ? 'border-transparent opacity-60'
           : isOverdue
-          ? 'border-rose-500/30 bg-rose-500/5'
+          ? 'border-rose-500/40 bg-rose-500/5'
           : 'border-[#27272A] hover:border-zinc-700'
       }`}
     >
-      {/* Checkbox */}
+      {/* Accessible Checkbox */}
       <button
         type="button"
+        role="checkbox"
+        aria-checked={task.isCompleted}
+        aria-label={task.isCompleted ? `Mark "${task.title}" as incomplete` : `Mark "${task.title}" as complete`}
         onClick={(e) => {
           e.stopPropagation();
           onToggleComplete(task);
         }}
-        className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all mr-3 flex-shrink-0 ${
+        className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all mr-3 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-coral/70 ${
           task.isCompleted
             ? 'bg-coral border-coral shadow-sm shadow-coral/30'
             : 'border-zinc-500 hover:border-coral bg-transparent'
         }`}
       >
-        {task.isCompleted && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+        {task.isCompleted && <Check className="w-3.5 h-3.5 text-white stroke-[3]" aria-hidden="true" />}
       </button>
 
       {/* Task Content */}
@@ -89,7 +103,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         </p>
 
         {(dueText || category || task.priority) && (
-          <div className="flex items-center flex-wrap gap-2 mt-1.5">
+          <div className="flex items-center flex-wrap gap-2 mt-1.5" aria-hidden="true">
             {category && (
               <span
                 className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
@@ -138,10 +152,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               e.stopPropagation();
               onSnooze(task);
             }}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            aria-label={`Snooze "${task.title}" to tomorrow`}
+            className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition focus:outline-none focus:ring-1 focus:ring-coral"
             title="Snooze to tomorrow"
           >
-            <Moon className="w-4 h-4" />
+            <Moon className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
 
@@ -151,13 +166,13 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             e.stopPropagation();
             if (task.id) onDelete(task.id);
           }}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+          aria-label={`Delete "${task.title}"`}
+          className="p-2 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition focus:outline-none focus:ring-1 focus:ring-rose-500"
           title="Delete task"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </div>
   );
 };
-

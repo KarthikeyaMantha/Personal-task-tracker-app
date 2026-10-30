@@ -15,7 +15,10 @@ export const BottomNavigation: React.FC<BottomNavProps> = ({ currentTab, onTabCh
   ] as const;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#18181B]/95 backdrop-blur-lg border-t border-[#27272A] z-40 bottom-nav-safe">
+    <nav
+      aria-label="Bottom Navigation"
+      className="fixed bottom-0 left-0 right-0 bg-[#18181B]/95 backdrop-blur-lg border-t border-[#27272A] z-40 bottom-nav-safe"
+    >
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -24,14 +27,16 @@ export const BottomNavigation: React.FC<BottomNavProps> = ({ currentTab, onTabCh
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200"
+              aria-label={tab.label}
+              aria-current={isSelected ? 'page' : undefined}
+              className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 focus:outline-none"
             >
               <div
                 className={`flex items-center justify-center px-5 py-1.5 rounded-full transition-all duration-200 ${
                   isSelected ? 'bg-coral text-white shadow-md shadow-coral/30' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <Icon className="w-5 h-5 stroke-[2.2]" />
+                <Icon className="w-5 h-5 stroke-[2.2]" aria-hidden="true" />
               </div>
               <span
                 className={`text-[11px] font-medium mt-1 transition-colors ${
@@ -70,43 +75,48 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div className="flex items-center justify-between max-w-lg mx-auto">
         <div className="flex items-center space-x-3">
           <button
+            type="button"
             onClick={onOpenSidebar}
-            className="p-2 -ml-2 rounded-xl text-zinc-300 hover:bg-zinc-800 transition active:scale-95"
+            className="p-2 -ml-2 rounded-xl text-zinc-300 hover:bg-zinc-800 transition active:scale-95 focus:outline-none focus:ring-1 focus:ring-coral"
             aria-label="Open sidebar menu"
           >
-            <Menu className="w-6 h-6 stroke-[2]" />
+            <Menu className="w-6 h-6 stroke-[2]" aria-hidden="true" />
           </button>
           <h1 className="text-xl font-bold tracking-tight text-white">{title}</h1>
         </div>
 
         <div className="flex items-center space-x-1">
           <button
+            type="button"
             onClick={onOpenVoice}
-            className="p-2 rounded-xl text-coral hover:bg-coral/10 transition active:scale-95"
-            aria-label="Voice input"
+            className="p-2 rounded-xl text-coral hover:bg-coral/10 transition active:scale-95 focus:outline-none focus:ring-1 focus:ring-coral"
+            aria-label="Voice input action"
           >
-            <Mic className="w-5 h-5 stroke-[2.5]" />
+            <Mic className="w-5 h-5 stroke-[2.5]" aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={onOpenFocus}
-            className="p-2 rounded-xl text-zinc-300 hover:bg-zinc-800 transition active:scale-95"
-            aria-label="Focus timer"
+            className="p-2 rounded-xl text-zinc-300 hover:bg-zinc-800 transition active:scale-95 focus:outline-none focus:ring-1 focus:ring-coral"
+            aria-label="Open focus timer"
           >
-            <Timer className="w-5 h-5 stroke-[2]" />
+            <Timer className="w-5 h-5 stroke-[2]" aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={onOpenInsights}
-            className="p-2 rounded-xl text-zinc-300 hover:bg-zinc-800 transition active:scale-95"
-            aria-label="Insights"
+            className="p-2 rounded-xl text-zinc-300 hover:bg-zinc-800 transition active:scale-95 focus:outline-none focus:ring-1 focus:ring-coral"
+            aria-label="Open insights"
           >
-            <TrendingUp className="w-5 h-5 stroke-[2]" />
+            <TrendingUp className="w-5 h-5 stroke-[2]" aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={onOpenWrapUp}
-            className="p-2 rounded-xl text-zinc-300 hover:bg-zinc-800 transition active:scale-95"
-            aria-label="Wrap up today"
+            className="p-2 rounded-xl text-zinc-300 hover:bg-zinc-800 transition active:scale-95 focus:outline-none focus:ring-1 focus:ring-coral"
+            aria-label="Open daily wrap up"
           >
-            <Moon className="w-5 h-5 stroke-[2]" />
+            <Moon className="w-5 h-5 stroke-[2]" aria-hidden="true" />
           </button>
         </div>
       </div>
