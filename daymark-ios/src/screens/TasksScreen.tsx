@@ -86,7 +86,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
             type="button"
             onClick={() => setSearchQuery('')}
             aria-label="Clear search query"
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-white"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-lg text-zinc-400 hover:text-white transition focus:outline-none focus:ring-1 focus:ring-coral"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>

@@ -49,21 +49,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({
     task.dueDate &&
     task.dueDate < new Date().setHours(0, 0, 0, 0);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onEdit(task);
-    }
-  };
-
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onEdit(task)}
-      onKeyDown={handleKeyDown}
-      aria-label={`Task: ${task.title}${dueText ? `, due ${dueText}` : ''}${task.isCompleted ? ', completed' : ''}`}
-      className={`group relative flex items-center p-4 rounded-2xl bg-[#1A1A1E] border transition-all active:scale-[0.99] cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-coral/50 ${
+      className={`group relative flex items-center p-3.5 rounded-2xl bg-[#1A1A1E] border transition-all shadow-sm ${
         task.isCompleted
           ? 'border-transparent opacity-60'
           : isOverdue
@@ -77,10 +65,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         role="checkbox"
         aria-checked={task.isCompleted}
         aria-label={task.isCompleted ? `Mark "${task.title}" as incomplete` : `Mark "${task.title}" as complete`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleComplete(task);
-        }}
+        onClick={() => onToggleComplete(task)}
         className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all mr-3 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-coral/70 ${
           task.isCompleted
             ? 'bg-coral border-coral shadow-sm shadow-coral/30'
@@ -90,8 +75,13 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         {task.isCompleted && <Check className="w-3.5 h-3.5 text-white stroke-[3]" aria-hidden="true" />}
       </button>
 
-      {/* Task Content */}
-      <div className="flex-1 min-w-0 pr-2">
+      {/* Main Task Title & Metadata (Accessible Button) */}
+      <button
+        type="button"
+        onClick={() => onEdit(task)}
+        aria-label={`Edit task: ${task.title}${dueText ? `, due ${dueText}` : ''}`}
+        className="flex-1 min-w-0 pr-2 text-left focus:outline-none focus:ring-1 focus:ring-coral/60 rounded-lg p-1 -m-1"
+      >
         <p
           className={`text-sm font-semibold truncate ${
             task.isCompleted
@@ -103,7 +93,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         </p>
 
         {(dueText || category || task.priority) && (
-          <div className="flex items-center flex-wrap gap-2 mt-1.5" aria-hidden="true">
+          <div className="flex items-center flex-wrap gap-2 mt-1" aria-hidden="true">
             {category && (
               <span
                 className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
@@ -141,17 +131,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             )}
           </div>
         )}
-      </div>
+      </button>
 
       {/* Quick Action Buttons: Snooze & Delete */}
       <div className="flex items-center space-x-1 flex-shrink-0">
         {onSnooze && !task.isCompleted && (
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSnooze(task);
-            }}
+            onClick={() => onSnooze(task)}
             aria-label={`Snooze "${task.title}" to tomorrow`}
             className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition focus:outline-none focus:ring-1 focus:ring-coral"
             title="Snooze to tomorrow"
@@ -162,8 +149,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={() => {
             if (task.id) onDelete(task.id);
           }}
           aria-label={`Delete "${task.title}"`}

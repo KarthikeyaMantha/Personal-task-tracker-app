@@ -68,7 +68,14 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
         className="bg-[#18181B] border border-[#27272A] rounded-3xl p-5 shadow-lg flex items-center justify-between"
       >
         <div className="flex items-center space-x-4">
-          <div className="relative w-16 h-16 flex items-center justify-center" aria-label={`${taskProgress}% tasks completed`}>
+          <div
+            role="progressbar"
+            aria-valuenow={taskProgress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${taskProgress}% tasks completed`}
+            className="relative w-16 h-16 flex items-center justify-center"
+          >
             {/* SVG Progress Ring */}
             <svg className="w-full h-full transform -rotate-90" aria-hidden="true">
               <circle

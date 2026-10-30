@@ -19,16 +19,17 @@ export const BottomNavigation: React.FC<BottomNavProps> = ({ currentTab, onTabCh
       aria-label="Bottom Navigation"
       className="fixed bottom-0 left-0 right-0 bg-[#18181B]/95 backdrop-blur-lg border-t border-[#27272A] z-40 bottom-nav-safe"
     >
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
+      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2" role="tablist" aria-label="Main tabs">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isSelected = currentTab === tab.id;
           return (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={isSelected}
               onClick={() => onTabChange(tab.id)}
               aria-label={tab.label}
-              aria-current={isSelected ? 'page' : undefined}
               className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 focus:outline-none"
             >
               <div
@@ -77,6 +78,8 @@ export const TopBar: React.FC<TopBarProps> = ({
           <button
             type="button"
             onClick={onOpenSidebar}
+            aria-haspopup="dialog"
+            aria-expanded="false"
             className="p-2 -ml-2 rounded-xl text-zinc-300 hover:bg-zinc-800 transition active:scale-95 focus:outline-none focus:ring-1 focus:ring-coral"
             aria-label="Open sidebar menu"
           >
@@ -89,6 +92,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <button
             type="button"
             onClick={onOpenVoice}
+            aria-haspopup="dialog"
             className="p-2 rounded-xl text-coral hover:bg-coral/10 transition active:scale-95 focus:outline-none focus:ring-1 focus:ring-coral"
             aria-label="Voice input action"
           >

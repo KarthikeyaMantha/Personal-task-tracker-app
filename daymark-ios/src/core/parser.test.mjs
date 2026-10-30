@@ -46,3 +46,4 @@ test('parseNaturalTask: action prefixes stripped cleanly', () => {
   const result = parseNaturalTask('remind me to water plants tomorrow');
   assert.equal(result.cleanTitle, 'Water plants');
 });
+
