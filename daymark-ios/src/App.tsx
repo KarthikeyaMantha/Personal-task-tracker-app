@@ -11,7 +11,7 @@ import { HabitsScreen } from './screens/HabitsScreen';
 import { CalendarScreen } from './screens/CalendarScreen';
 import { FocusScreen } from './screens/FocusScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { Share, PlusSquare } from 'lucide-react';
+import { Share, PlusSquare, RotateCcw } from 'lucide-react';
 import type { Task, Habit } from './types';
 
 export function App() {
@@ -114,7 +114,18 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans">
+    <div className="min-h-[100dvh] flex flex-col font-sans relative">
+      {/* Mobile Landscape Orientation Advisory */}
+      <div className="hidden landscape-warning fixed inset-0 z-50 bg-[#121214] flex-col items-center justify-center p-6 text-center text-zinc-300">
+        <div className="w-14 h-14 rounded-2xl bg-coral/10 text-coral flex items-center justify-center mb-4 border border-coral/20">
+          <RotateCcw className="w-7 h-7 animate-pulse text-coral" />
+        </div>
+        <h2 className="text-base font-bold text-white mb-1.5">Portrait Mode Recommended</h2>
+        <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
+          Please rotate your iPhone to portrait orientation for the optimal Daymark experience.
+        </p>
+      </div>
+
       {/* Top Header */}
       {activeScreen === 'main' && (
         <TopBar
@@ -128,7 +139,7 @@ export function App() {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-lg w-full mx-auto px-4 pt-4">
+      <main className="flex-1 max-w-lg w-full mx-auto px-4 pt-3 content-bottom-safe">
         {/* iOS Add-to-Home-Screen Guidance Pill */}
         {showIosPrompt && (
           <div className="mb-4 bg-coral/10 border border-coral/30 rounded-2xl p-3.5 text-xs text-zinc-300 flex items-center justify-between shadow-sm">

@@ -15,8 +15,8 @@ export const BottomNavigation: React.FC<BottomNavProps> = ({ currentTab, onTabCh
   ] as const;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#18181B] border-t border-[#27272A] z-40 pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-4">
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#18181B]/95 backdrop-blur-lg border-t border-[#27272A] z-40 bottom-nav-safe">
+      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isSelected = currentTab === tab.id;
@@ -66,7 +66,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenWrapUp,
 }) => {
   return (
-    <header className="sticky top-0 z-30 bg-[#121214]/95 backdrop-blur-md pt-[env(safe-area-inset-top)] px-4 py-3 border-b border-[#202024]">
+    <header className="sticky top-0 z-30 bg-[#121214]/95 backdrop-blur-md pt-safe px-4 pb-3 border-b border-[#202024]">
       <div className="flex items-center justify-between max-w-lg mx-auto">
         <div className="flex items-center space-x-3">
           <button
@@ -113,4 +113,3 @@ export const TopBar: React.FC<TopBarProps> = ({
     </header>
   );
 };
-

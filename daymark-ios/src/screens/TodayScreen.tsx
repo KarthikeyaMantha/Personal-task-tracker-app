@@ -194,7 +194,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
       {/* Floating Action Button (+) */}
       <button
         onClick={onOpenNewTask}
-        className="fixed right-5 bottom-20 z-30 w-14 h-14 rounded-full bg-coral text-white shadow-xl shadow-coral/40 flex items-center justify-center hover:bg-coral-light active:scale-95 transition-all"
+        className="fixed right-5 fab-bottom-safe z-30 w-14 h-14 rounded-full bg-coral text-white shadow-xl shadow-coral/40 flex items-center justify-center hover:bg-coral-light active:scale-95 transition-all"
         aria-label="Create task"
       >
         <Plus className="w-7 h-7 stroke-[2.8]" />
