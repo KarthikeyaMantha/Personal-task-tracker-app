@@ -169,7 +169,7 @@ fun TodayScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             DaymarkTopAppBar(
-                title = "Today",
+                title = "Daymark",
                 navigationIcon = if (onOpenDrawer != null) {
                     {
                         IconButton(onClick = onOpenDrawer) {

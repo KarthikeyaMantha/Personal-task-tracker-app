@@ -148,7 +148,7 @@ export function App() {
       {/* Top Header */}
       {activeScreen === 'main' && (
         <TopBar
-          title={currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}
+          title={currentTab === 'today' ? 'Daymark' : currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}
           onOpenSidebar={() => setIsSidebarOpen(true)}
           onOpenVoice={() => setIsVoiceOpen(true)}
           onOpenFocus={() => setActiveScreen('focus')}
