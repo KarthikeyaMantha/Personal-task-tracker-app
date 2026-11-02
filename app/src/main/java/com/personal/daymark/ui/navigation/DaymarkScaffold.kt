@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.DrawerValue
@@ -83,6 +84,18 @@ fun DaymarkScaffold(
                 }
                 launchSingleTop = true
                 restoreState = true
+            }
+        }
+    }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val appContainer = (context.applicationContext as? com.personal.daymark.DaymarkApplication)?.container
+
+    // Auto-lock finance tab when leaving the tab
+    androidx.compose.runtime.DisposableEffect(currentRoute) {
+        onDispose {
+            if (currentRoute == DaymarkDestination.Finance.route) {
+                appContainer?.financeSecurityManager?.lock()
             }
         }
     }
@@ -195,6 +208,21 @@ fun DaymarkScaffold(
                     onClick = {
                         coroutineScope.launch { drawerState.close() }
                         navController.navigate(DaymarkDestination.ManageTemplates.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+
+                NavigationDrawerItem(
+                    label = { Text("Personal Finance", fontWeight = FontWeight.Medium) },
+                    icon = { Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null) },
+                    selected = currentRoute == DaymarkDestination.Finance.route,
+                    onClick = {
+                        coroutineScope.launch { drawerState.close() }
+                        navController.navigate(DaymarkDestination.Finance.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
                             restoreState = true

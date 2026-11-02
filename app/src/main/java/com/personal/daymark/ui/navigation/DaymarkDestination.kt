@@ -3,12 +3,14 @@ package com.personal.daymark.ui.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Repeat
@@ -38,6 +40,13 @@ sealed class DaymarkDestination(
         title = "Tasks",
         unselectedIcon = Icons.Outlined.CheckCircle,
         selectedIcon = Icons.Filled.CheckCircle
+    )
+
+    data object Finance : DaymarkDestination(
+        route = "finance",
+        title = "Finance",
+        unselectedIcon = Icons.Outlined.AccountBalanceWallet,
+        selectedIcon = Icons.Filled.AccountBalanceWallet
     )
 
     data object Calendar : DaymarkDestination(
@@ -101,7 +110,8 @@ sealed class DaymarkDestination(
             Today,
             Tasks,
             Calendar,
-            Habits
+            Habits,
+            Finance
         )
     }
 }

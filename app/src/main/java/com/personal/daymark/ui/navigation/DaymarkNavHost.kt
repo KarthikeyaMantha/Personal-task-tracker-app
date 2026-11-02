@@ -68,6 +68,11 @@ fun DaymarkNavHost(
                 onNavigateToFocus = { navController.navigate(DaymarkDestination.Focus.route) }
             )
         }
+        composable(route = DaymarkDestination.Finance.route) {
+            com.personal.daymark.ui.screens.finance.FinanceScreen(
+                onOpenDrawer = onOpenDrawer
+            )
+        }
         composable(route = DaymarkDestination.Focus.route) {
             com.personal.daymark.ui.screens.focus.FocusScreen(
                 onNavigateBack = { navController.popBackStack() },

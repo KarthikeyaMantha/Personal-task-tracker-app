@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.personal.daymark.data.local.dao.CategoryDao
 import com.personal.daymark.data.local.dao.DayTemplateDao
+import com.personal.daymark.data.local.dao.FinanceDao
 import com.personal.daymark.data.local.dao.FocusDao
 import com.personal.daymark.data.local.dao.HabitDao
 import com.personal.daymark.data.local.dao.SubtaskDao
@@ -13,6 +14,10 @@ import com.personal.daymark.data.local.dao.TaskDao
 import com.personal.daymark.data.local.dao.TimeBlockDao
 import com.personal.daymark.data.local.entity.CategoryEntity
 import com.personal.daymark.data.local.entity.DayTemplateEntity
+import com.personal.daymark.data.local.entity.FinanceAccountEntity
+import com.personal.daymark.data.local.entity.FinanceBudgetEntity
+import com.personal.daymark.data.local.entity.FinanceSavingsGoalEntity
+import com.personal.daymark.data.local.entity.FinanceTransactionEntity
 import com.personal.daymark.data.local.entity.FocusSessionEntity
 import com.personal.daymark.data.local.entity.HabitEntity
 import com.personal.daymark.data.local.entity.HabitLogEntity
@@ -31,9 +36,13 @@ import com.personal.daymark.data.local.entity.TimeBlockEntity
         FocusSessionEntity::class,
         TimeBlockEntity::class,
         DayTemplateEntity::class,
-        TemplateItemEntity::class
+        TemplateItemEntity::class,
+        FinanceAccountEntity::class,
+        FinanceTransactionEntity::class,
+        FinanceBudgetEntity::class,
+        FinanceSavingsGoalEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class DaymarkDatabase : RoomDatabase() {
@@ -45,6 +54,7 @@ abstract class DaymarkDatabase : RoomDatabase() {
     abstract fun focusDao(): FocusDao
     abstract fun timeBlockDao(): TimeBlockDao
     abstract fun dayTemplateDao(): DayTemplateDao
+    abstract fun financeDao(): FinanceDao
 
     companion object {
         const val DATABASE_NAME = "daymark.db"
@@ -150,6 +160,66 @@ abstract class DaymarkDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // 1. Finance Accounts table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS finance_accounts (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        name TEXT NOT NULL,
+                        initial_balance_paise INTEGER NOT NULL DEFAULT 0,
+                        updated_at INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_finance_accounts_id ON finance_accounts(id)")
+
+                val now = System.currentTimeMillis()
+                db.execSQL("INSERT OR IGNORE INTO finance_accounts (id, name, initial_balance_paise, updated_at) VALUES ('cash', 'Cash', 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO finance_accounts (id, name, initial_balance_paise, updated_at) VALUES ('bank', 'Bank Account', 0, $now)")
+
+                // 2. Finance Transactions table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS finance_transactions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        type TEXT NOT NULL,
+                        amount_paise INTEGER NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        category TEXT NOT NULL,
+                        account_id TEXT NOT NULL,
+                        to_account_id TEXT,
+                        payment_mode TEXT NOT NULL DEFAULT 'CASH',
+                        notes TEXT,
+                        created_at INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_finance_transactions_timestamp ON finance_transactions(timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_finance_transactions_account_id ON finance_transactions(account_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_finance_transactions_type ON finance_transactions(type)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_finance_transactions_category ON finance_transactions(category)")
+
+                // 3. Finance Budgets table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS finance_budgets (
+                        id INTEGER PRIMARY KEY NOT NULL,
+                        monthly_limit_paise INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                """.trimIndent())
+
+                // 4. Finance Savings Goals table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS finance_savings_goals (
+                        id INTEGER PRIMARY KEY NOT NULL,
+                        title TEXT NOT NULL,
+                        target_amount_paise INTEGER NOT NULL,
+                        current_amount_paise INTEGER NOT NULL DEFAULT 0,
+                        target_date INTEGER,
+                        created_at INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         @Volatile
         private var INSTANCE: DaymarkDatabase? = null
 
@@ -174,9 +244,11 @@ abstract class DaymarkDatabase : RoomDatabase() {
                         db.execSQL("INSERT OR IGNORE INTO categories (name, color_hex, sort_order, created_at) VALUES ('Study', '#4A6FA5', 2, $now)")
                         db.execSQL("INSERT OR IGNORE INTO categories (name, color_hex, sort_order, created_at) VALUES ('Health', '#D97706', 3, $now)")
                         db.execSQL("INSERT OR IGNORE INTO categories (name, color_hex, sort_order, created_at) VALUES ('Other', '#6B7280', 4, $now)")
+                        db.execSQL("INSERT OR IGNORE INTO finance_accounts (id, name, initial_balance_paise, updated_at) VALUES ('cash', 'Cash', 0, $now)")
+                        db.execSQL("INSERT OR IGNORE INTO finance_accounts (id, name, initial_balance_paise, updated_at) VALUES ('bank', 'Bank Account', 0, $now)")
                     }
                 })
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                 .build()
         }
     }

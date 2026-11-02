@@ -5,7 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,7 +27,7 @@ import com.personal.daymark.data.datastore.UserPreferences
 import com.personal.daymark.ui.navigation.DaymarkScaffold
 import com.personal.daymark.ui.theme.DaymarkTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private var incomingTargetTaskId by mutableStateOf<Long?>(null)
     private var incomingTargetRoute by mutableStateOf<String?>(null)
@@ -99,6 +99,11 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         com.personal.daymark.core.common.DaymarkDayManager.notifyDayChangedOrResumed()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        (application as? DaymarkApplication)?.container?.financeSecurityManager?.lock()
     }
 }
 
