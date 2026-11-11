@@ -93,15 +93,15 @@ class TaskReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action 1: Mark Complete
-        val completeIntent = Intent(context, NotificationActionReceiver::class.java).apply {
-            action = NotificationActionReceiver.ACTION_COMPLETE_TASK
+        // Action 1: Dismiss / Stop Alarm
+        val dismissIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_DISMISS_TASK
             putExtra(EXTRA_TASK_ID, taskId)
         }
-        val completePendingIntent = PendingIntent.getBroadcast(
+        val dismissPendingIntent = PendingIntent.getBroadcast(
             context,
             (taskId * 10 + 1).toInt(),
-            completeIntent,
+            dismissIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -119,33 +119,38 @@ class TaskReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action 3: Snooze 30m
-        val snooze30Intent = Intent(context, NotificationActionReceiver::class.java).apply {
-            action = NotificationActionReceiver.ACTION_SNOOZE_TASK
+        // Action 3: Mark Complete
+        val completeIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_COMPLETE_TASK
             putExtra(EXTRA_TASK_ID, taskId)
-            putExtra(EXTRA_TASK_TITLE, title)
-            putExtra(NotificationActionReceiver.EXTRA_SNOOZE_MINUTES, 30)
         }
-        val snooze30PendingIntent = PendingIntent.getBroadcast(
+        val completePendingIntent = PendingIntent.getBroadcast(
             context,
             (taskId * 10 + 3).toInt(),
-            snooze30Intent,
+            completeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_TASK_REMINDERS)
+        val alarmSoundUri = NotificationHelper.getAlarmSoundUri(context)
+
+        val notification = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_TASK_ALARMS)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
-            .setContentText(note?.takeIf { it.isNotBlank() } ?: "Task reminder is due now")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setContentText(note?.takeIf { it.isNotBlank() } ?: "Task alarm is due now")
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setSound(alarmSoundUri, android.media.AudioManager.STREAM_ALARM)
+            .setVibrate(longArrayOf(0, 800, 400, 800, 400, 800))
+            .setFullScreenIntent(contentPendingIntent, true)
             .setAutoCancel(true)
             .setContentIntent(contentPendingIntent)
             .addAction(R.drawable.ic_launcher_foreground, "Mark Complete", completePendingIntent)
             .addAction(R.drawable.ic_launcher_foreground, "Snooze 10m", snooze10PendingIntent)
-            .addAction(R.drawable.ic_launcher_foreground, "Snooze 30m", snooze30PendingIntent)
+            .addAction(R.drawable.ic_launcher_foreground, "Dismiss", dismissPendingIntent)
             .build()
+
+        notification.flags = notification.flags or android.app.Notification.FLAG_INSISTENT
 
         NotificationManagerCompat.from(context).notify(taskId.toInt(), notification)
     }

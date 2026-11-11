@@ -8,8 +8,15 @@ import android.media.RingtoneManager
 import android.os.Build
 
 object NotificationHelper {
+    const val CHANNEL_TASK_ALARMS = "channel_task_alarms_v2"
     const val CHANNEL_TASK_REMINDERS = "channel_task_reminders"
     const val CHANNEL_FOCUS_TIMER = "channel_focus_timer"
+
+    fun getAlarmSoundUri(context: Context): android.net.Uri {
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+    }
 
     /**
      * Initializes notification channels required for Daymark on Android O+ (API 26+).
@@ -19,13 +26,29 @@ object NotificationHelper {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                 ?: return
 
-            val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val audioAttributes = AudioAttributes.Builder()
+            val alarmSoundUri = getAlarmSoundUri(context)
+            val alarmAudioAttributes = AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
                 .build()
 
-            // 1. Task Reminders Channel
+            // 1. Task & Habit Alarms Channel (Ringing alarm sound, highest importance, bypass DND)
+            val alarmChannel = NotificationChannel(
+                CHANNEL_TASK_ALARMS,
+                "Task & Habit Alarms",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Audible ringing alarms and alerts for scheduled tasks and habits"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 800, 400, 800, 400, 800)
+                setSound(alarmSoundUri, alarmAudioAttributes)
+                setBypassDnd(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setShowBadge(true)
+            }
+
+            // 2. Legacy Task Reminders Channel (Maintained for backward compatibility)
             val reminderChannel = NotificationChannel(
                 CHANNEL_TASK_REMINDERS,
                 "Task Reminders",
@@ -33,11 +56,12 @@ object NotificationHelper {
             ).apply {
                 description = "Alerts and reminders for scheduled tasks and due dates"
                 enableVibration(true)
-                setSound(alarmSound, audioAttributes)
+                setSound(alarmSoundUri, alarmAudioAttributes)
+                setBypassDnd(true)
                 setShowBadge(true)
             }
 
-            // 2. Focus Timer Channel
+            // 3. Focus Timer Channel
             val focusChannel = NotificationChannel(
                 CHANNEL_FOCUS_TIMER,
                 "Focus Timer",
@@ -48,7 +72,7 @@ object NotificationHelper {
                 setShowBadge(false)
             }
 
-            notificationManager.createNotificationChannels(listOf(reminderChannel, focusChannel))
+            notificationManager.createNotificationChannels(listOf(alarmChannel, reminderChannel, focusChannel))
         }
     }
 

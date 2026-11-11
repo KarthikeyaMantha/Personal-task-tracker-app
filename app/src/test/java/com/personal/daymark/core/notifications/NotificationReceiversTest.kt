@@ -84,10 +84,10 @@ class NotificationReceiversTest {
         val shadow = shadowOf(postedNotification)
         assertEquals("Important Review", shadow.contentTitle)
         assertEquals("Check reminder firing", shadow.contentText)
-        assertEquals(3, postedNotification.actions.size) // Mark Complete, Snooze 10m, Snooze 30m
+        assertEquals(3, postedNotification.actions.size) // Mark Complete, Snooze 10m, Dismiss
         assertEquals("Mark Complete", postedNotification.actions[0].title)
         assertEquals("Snooze 10m", postedNotification.actions[1].title)
-        assertEquals("Snooze 30m", postedNotification.actions[2].title)
+        assertEquals("Dismiss", postedNotification.actions[2].title)
     }
 
     @Test

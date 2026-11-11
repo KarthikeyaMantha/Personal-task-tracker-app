@@ -20,18 +20,39 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val app = context.applicationContext as? DaymarkApplication ?: return
         val pendingResult = try { goAsync() } catch (e: Exception) { null }
 
-        if (intent.action == ACTION_COMPLETE_HABIT) {
+        // 1. Habit Actions
+        if (intent.action == ACTION_COMPLETE_HABIT || intent.action == ACTION_DISMISS_HABIT || intent.action == ACTION_SNOOZE_HABIT) {
             val habitId = intent.getLongExtra(EXTRA_HABIT_ID, -1L)
             if (habitId == -1L) {
                 pendingResult?.finish()
                 return
             }
+            // Dismiss notification immediately to stop ringing
             NotificationManagerCompat.from(context).cancel((100_000_000L + habitId).toInt())
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    app.container.habitRepository.setHabitCompletedForDate(habitId, java.time.LocalDate.now(), true)
-                    com.personal.daymark.widget.HealthWidgetUpdater.update(context)
-                } finally {
+
+            when (intent.action) {
+                ACTION_COMPLETE_HABIT -> {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            app.container.habitRepository.setHabitCompletedForDate(habitId, java.time.LocalDate.now(), true)
+                            com.personal.daymark.widget.HealthWidgetUpdater.update(context)
+                        } finally {
+                            pendingResult?.finish()
+                        }
+                    }
+                }
+                ACTION_SNOOZE_HABIT -> {
+                    val snoozeMinutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 10)
+                    val snoozeTimeMillis = System.currentTimeMillis() + (snoozeMinutes * 60 * 1000L)
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            app.container.reminderScheduler.scheduleHabitSnooze(habitId, snoozeTimeMillis)
+                        } finally {
+                            pendingResult?.finish()
+                        }
+                    }
+                }
+                ACTION_DISMISS_HABIT -> {
                     pendingResult?.finish()
                 }
             }
@@ -44,7 +65,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             return
         }
 
-        // Immediately dismiss the current notification
+        // Immediately dismiss the current notification to stop ringing
         NotificationManagerCompat.from(context).cancel(taskId.toInt())
 
         when (intent.action) {
@@ -79,6 +100,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     }
                 }
             }
+            ACTION_DISMISS_TASK -> {
+                pendingResult?.finish()
+            }
             else -> {
                 pendingResult?.finish()
             }
@@ -88,7 +112,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_COMPLETE_TASK = "com.personal.daymark.ACTION_COMPLETE_TASK"
         const val ACTION_SNOOZE_TASK = "com.personal.daymark.ACTION_SNOOZE_TASK"
+        const val ACTION_DISMISS_TASK = "com.personal.daymark.ACTION_DISMISS_TASK"
         const val ACTION_COMPLETE_HABIT = "com.personal.daymark.ACTION_COMPLETE_HABIT"
+        const val ACTION_SNOOZE_HABIT = "com.personal.daymark.ACTION_SNOOZE_HABIT"
+        const val ACTION_DISMISS_HABIT = "com.personal.daymark.ACTION_DISMISS_HABIT"
         const val EXTRA_SNOOZE_MINUTES = "extra_snooze_minutes"
         const val EXTRA_HABIT_ID = "extra_habit_id"
     }

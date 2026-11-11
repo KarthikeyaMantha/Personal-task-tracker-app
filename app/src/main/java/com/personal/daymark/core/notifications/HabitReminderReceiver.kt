@@ -85,14 +85,39 @@ class HabitReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action 1: Mark Done
+        // Action 1: Dismiss / Stop Alarm
+        val dismissIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_DISMISS_HABIT
+            putExtra(NotificationActionReceiver.EXTRA_HABIT_ID, habit.id)
+        }
+        val dismissPendingIntent = PendingIntent.getBroadcast(
+            context,
+            notificationId + 1,
+            dismissIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Action 2: Snooze 10m
+        val snoozeIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_SNOOZE_HABIT
+            putExtra(NotificationActionReceiver.EXTRA_HABIT_ID, habit.id)
+            putExtra(NotificationActionReceiver.EXTRA_SNOOZE_MINUTES, 10)
+        }
+        val snoozePendingIntent = PendingIntent.getBroadcast(
+            context,
+            notificationId + 2,
+            snoozeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Action 3: Mark Done
         val completeIntent = Intent(context, NotificationActionReceiver::class.java).apply {
             action = NotificationActionReceiver.ACTION_COMPLETE_HABIT
             putExtra(NotificationActionReceiver.EXTRA_HABIT_ID, habit.id)
         }
         val completePendingIntent = PendingIntent.getBroadcast(
             context,
-            notificationId + 1,
+            notificationId + 3,
             completeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -103,18 +128,29 @@ class HabitReminderReceiver : BroadcastReceiver() {
             habit.note?.takeIf { it.isNotBlank() } ?: "Time for your daily ${habit.name}"
         }
 
-        val builder = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_TASK_REMINDERS)
+        val alarmSoundUri = NotificationHelper.getAlarmSoundUri(context)
+
+        val notification = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_TASK_ALARMS)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Habit: ${habit.name}")
+            .setContentTitle("Habit Alarm: ${habit.name}")
             .setContentText(notifContent)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setSound(alarmSoundUri, android.media.AudioManager.STREAM_ALARM)
+            .setVibrate(longArrayOf(0, 800, 400, 800, 400, 800))
+            .setFullScreenIntent(contentPendingIntent, true)
             .setAutoCancel(true)
             .setContentIntent(contentPendingIntent)
+            .addAction(R.mipmap.ic_launcher, "Dismiss", dismissPendingIntent)
+            .addAction(R.mipmap.ic_launcher, "Snooze 10m", snoozePendingIntent)
             .addAction(R.mipmap.ic_launcher, "Mark Done", completePendingIntent)
+            .build()
+
+        notification.flags = notification.flags or android.app.Notification.FLAG_INSISTENT
 
         try {
-            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
         } catch (_: SecurityException) {
             // Handled gracefully
         }

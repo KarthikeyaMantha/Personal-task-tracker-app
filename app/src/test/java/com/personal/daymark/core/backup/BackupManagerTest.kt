@@ -66,6 +66,7 @@ class BackupManagerTest {
         override fun cancelReminder(taskId: Long) { scheduledTasks.removeAll { it.id == taskId } }
         override fun canScheduleExactAlarms(): Boolean = true
         override fun scheduleHabitReminder(habit: HabitEntity) {}
+        override fun scheduleHabitSnooze(habitId: Long, snoozeTimeMillis: Long) {}
         override fun cancelHabitReminder(habitId: Long) {}
     }
 

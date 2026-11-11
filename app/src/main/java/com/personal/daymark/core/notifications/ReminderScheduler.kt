@@ -17,6 +17,7 @@ interface ReminderScheduler {
     fun cancelReminder(taskId: Long)
     fun canScheduleExactAlarms(): Boolean
     fun scheduleHabitReminder(habit: HabitEntity)
+    fun scheduleHabitSnooze(habitId: Long, snoozeTimeMillis: Long)
     fun cancelHabitReminder(habitId: Long)
 }
 
@@ -152,8 +153,43 @@ class AlarmManagerReminderScheduler(
         }
     }
 
+    override fun scheduleHabitSnooze(habitId: Long, snoozeTimeMillis: Long) {
+        if (snoozeTimeMillis <= System.currentTimeMillis()) return
+
+        val intent = Intent(context, HabitReminderReceiver::class.java).apply {
+            action = HabitReminderReceiver.ACTION_HABIT_REMINDER
+            putExtra(HabitReminderReceiver.EXTRA_HABIT_ID, habitId)
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            (100_000_000L + habitId).toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        scheduleAlarm(snoozeTimeMillis, pendingIntent)
+    }
+
     private fun scheduleAlarm(triggerTimeMillis: Long, pendingIntent: PendingIntent) {
         try {
+            // Prefer setAlarmClock for guaranteed, highest-priority on-time ringing that bypasses Doze & power-saving
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()) {
+                    val showIntent = PendingIntent.getActivity(
+                        context,
+                        0,
+                        Intent(context, com.personal.daymark.MainActivity::class.java),
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    alarmManager.setAlarmClock(
+                        AlarmManager.AlarmClockInfo(triggerTimeMillis, showIntent),
+                        pendingIntent
+                    )
+                    return
+                }
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
                     alarmManager.setExactAndAllowWhileIdle(

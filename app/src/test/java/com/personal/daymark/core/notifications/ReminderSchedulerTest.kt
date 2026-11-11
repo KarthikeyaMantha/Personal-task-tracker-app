@@ -46,6 +46,10 @@ class ReminderSchedulerTest {
 
     @Test
     fun testNotificationChannelsCreated() {
+        val alarmChannel = notificationManager.getNotificationChannel(NotificationHelper.CHANNEL_TASK_ALARMS)
+        assertNotNull("Task & Habit Alarms channel should be created", alarmChannel)
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, alarmChannel.importance)
+
         val reminderChannel = notificationManager.getNotificationChannel(NotificationHelper.CHANNEL_TASK_REMINDERS)
         assertNotNull("Task Reminders channel should be created", reminderChannel)
         assertEquals(NotificationManager.IMPORTANCE_HIGH, reminderChannel.importance)
